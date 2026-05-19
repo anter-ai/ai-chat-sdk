@@ -1,5 +1,4 @@
 
-
 > @anter/ai-chat-sdk@0.1.0 build /Users/mp/Dev-Workspaces/hyke/github/mp-hyke/askinfosec/packages/ai-chat-sdk
 > pnpm run clean && tsup && tsc -p tsconfig.build.json && mkdir -p dist/styles && cp src/styles/*.css dist/styles/
 
@@ -7,36 +6,36 @@
 > @anter/ai-chat-sdk@0.1.0 clean /Users/mp/Dev-Workspaces/hyke/github/mp-hyke/askinfosec/packages/ai-chat-sdk
 > rimraf dist tsconfig.tsbuildinfo
 
-[34mCLI[39m Building entry: {"index":"src/index.ts","headless/index":"src/headless/index.ts","ui/index":"src/ui/index.ts","adapters/index":"src/adapters/index.ts","headless/types/index":"src/headless/types/index.ts"}
-[34mCLI[39m Using tsconfig: tsconfig.json
-[34mCLI[39m tsup v8.5.1
-[34mCLI[39m Using tsup config: /Users/mp/Dev-Workspaces/hyke/github/mp-hyke/askinfosec/packages/ai-chat-sdk/tsup.config.ts
-[34mCLI[39m Target: es2022
-[34mESM[39m Build start
+CLI Building entry: {"index":"src/index.ts","headless/index":"src/headless/index.ts","ui/index":"src/ui/index.ts","adapters/index":"src/adapters/index.ts","headless/types/index":"src/headless/types/index.ts"}
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/mp/Dev-Workspaces/hyke/github/mp-hyke/askinfosec/packages/ai-chat-sdk/tsup.config.ts
+CLI Target: es2022
+ESM Build start
 Generated an empty chunk: "chunk-YIN3BRQ5".
 Generated an empty chunk: "chunk-4VPXSMVJ".
-[32mESM[39m [1mdist/chunk-YIN3BRQ5.js           [22m[32m86.00 B[39m
-[32mESM[39m [1mdist/ui/index.js                 [22m[32m598.00 B[39m
-[32mESM[39m [1mdist/adapters/index.js           [22m[32m156.00 B[39m
-[32mESM[39m [1mdist/index.js                    [22m[32m1.04 KB[39m
-[32mESM[39m [1mdist/headless/index.js           [22m[32m426.00 B[39m
-[32mESM[39m [1mdist/headless/types/index.js     [22m[32m159.00 B[39m
-[32mESM[39m [1mdist/chunk-VDPJWFEC.js           [22m[32m30.78 KB[39m
-[32mESM[39m [1mdist/chunk-MCGS2VNY.js           [22m[32m649.00 B[39m
-[32mESM[39m [1mdist/chunk-4VPXSMVJ.js           [22m[32m86.00 B[39m
-[32mESM[39m [1mdist/chunk-AK5DSGFF.js           [22m[32m7.69 KB[39m
-[32mESM[39m [1mdist/chunk-ETWULQGP.js           [22m[32m575.00 B[39m
-[32mESM[39m [1mdist/chunk-TLEZ72BN.js           [22m[32m120.66 KB[39m
-[32mESM[39m [1mdist/chunk-YIN3BRQ5.js.map       [22m[32m78.00 B[39m
-[32mESM[39m [1mdist/ui/index.js.map             [22m[32m69.00 B[39m
-[32mESM[39m [1mdist/index.js.map                [22m[32m69.00 B[39m
-[32mESM[39m [1mdist/headless/index.js.map       [22m[32m69.00 B[39m
-[32mESM[39m [1mdist/adapters/index.js.map       [22m[32m69.00 B[39m
-[32mESM[39m [1mdist/chunk-4VPXSMVJ.js.map       [22m[32m78.00 B[39m
-[32mESM[39m [1mdist/chunk-MCGS2VNY.js.map       [22m[32m1.51 KB[39m
-[32mESM[39m [1mdist/chunk-VDPJWFEC.js.map       [22m[32m70.75 KB[39m
-[32mESM[39m [1mdist/chunk-AK5DSGFF.js.map       [22m[32m18.41 KB[39m
-[32mESM[39m [1mdist/headless/types/index.js.map [22m[32m69.00 B[39m
-[32mESM[39m [1mdist/chunk-ETWULQGP.js.map       [22m[32m1.27 KB[39m
-[32mESM[39m [1mdist/chunk-TLEZ72BN.js.map       [22m[32m244.96 KB[39m
-[32mESM[39m ⚡️ Build success in 448ms
+ESM dist/chunk-MCGS2VNY.js           649.00 B
+ESM dist/chunk-YIN3BRQ5.js           86.00 B
+ESM dist/chunk-AK5DSGFF.js           7.69 KB
+ESM dist/index.js                    1.04 KB
+ESM dist/chunk-VDPJWFEC.js           30.78 KB
+ESM dist/chunk-TLEZ72BN.js           120.66 KB
+ESM dist/chunk-ETWULQGP.js           575.00 B
+ESM dist/chunk-4VPXSMVJ.js           86.00 B
+ESM dist/ui/index.js                 598.00 B
+ESM dist/headless/types/index.js     159.00 B
+ESM dist/adapters/index.js           156.00 B
+ESM dist/headless/index.js           426.00 B
+ESM dist/chunk-YIN3BRQ5.js.map       78.00 B
+ESM dist/chunk-MCGS2VNY.js.map       1.51 KB
+ESM dist/index.js.map                69.00 B
+ESM dist/chunk-AK5DSGFF.js.map       18.41 KB
+ESM dist/chunk-TLEZ72BN.js.map       244.96 KB
+ESM dist/chunk-ETWULQGP.js.map       1.27 KB
+ESM dist/chunk-4VPXSMVJ.js.map       78.00 B
+ESM dist/chunk-VDPJWFEC.js.map       70.75 KB
+ESM dist/ui/index.js.map             69.00 B
+ESM dist/headless/types/index.js.map 69.00 B
+ESM dist/adapters/index.js.map       69.00 B
+ESM dist/headless/index.js.map       69.00 B
+ESM ⚡️ Build success in 393ms

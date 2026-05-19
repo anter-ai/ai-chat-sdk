@@ -4173,6 +4173,24 @@
   padding: 0;
 }
 
+/* Empty state: group greeting + composer together in vertical center */
+.ais-chat-main:has(.ais-messages--empty) {
+  justify-content: center;
+}
+.ais-chat-main:has(.ais-messages--empty) .ais-messages--empty {
+  flex: 0 0 auto;
+  overflow: visible;
+  min-height: 0;
+}
+.ais-chat-main:has(.ais-messages--empty) .ais-empty-state {
+  height: auto;
+}
+.ais-chat-main:has(.ais-messages--empty) .ais-composer {
+  position: relative;
+  bottom: unset;
+  margin-top: 0;
+}
+
 /* ─── Empty State ────────────────────────────────────────────── */
 
 .ais-empty-state {

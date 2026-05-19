@@ -1,0 +1,79 @@
+[data-chat-provider] {
+  /* Base dynamic tokens with fallbacks to common host variables */
+  --chat-bg: var(--background, #ffffff);
+  --chat-sidebar-bg: var(--muted, #f3f7fc);
+  --artifact-bg: var(--card, #edf4ff);
+  --chat-border: var(--border, #d6e2f2);
+  --chat-accent: #0066ff;
+  --chat-accent-hover: #0057d9;
+  --chat-accent-foreground: #ffffff;
+  --message-user-bg: var(--secondary, #f3f3f3);
+  --message-user-text: var(--foreground, #0e223d);
+  --message-ai-bg: transparent;
+  --message-ai-text: var(--foreground, #0e223d);
+  --chat-muted: #64748b;
+
+  --chat-radius-sm: 6px;
+  --chat-radius-md: 10px;
+  --chat-radius-lg: 16px;
+  --chat-sidebar-width: 288px;
+  --chat-artifact-width: 400px;
+}
+
+/* Dark mode overrides: 
+   1. If data-theme is explicitly 'dark'
+   2. If host has .dark class and SDK is in 'system' (default) or 'dark' theme
+*/
+[data-chat-provider][data-theme="dark"],
+:where(.dark) [data-chat-provider]:not([data-theme="light"]) {
+  /* Dark defaults if host variables are missing */
+  --chat-bg: var(--background, #0d1117);
+  --chat-sidebar-bg: var(--muted, #161b22);
+  --artifact-bg: var(--card, #0d1117);
+  --chat-border: var(--border, #30363d);
+  --message-user-bg: var(--secondary, #21262d);
+  --message-user-text: var(--foreground, #c9d1d9);
+  --message-ai-text: var(--foreground, #c9d1d9);
+  --chat-muted: #8b949e;
+
+  /* Adjusted accent for dark mode */
+  --chat-accent: #2f81f7;
+  --chat-accent-hover: #58a6ff;
+}
+
+@keyframes ais-chip-pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.ais-animate-chip-pulse {
+  animation: ais-chip-pulse 320ms ease-out 1;
+}
+
+@keyframes ais-artifact-panel-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.ais-animate-artifact-panel-in {
+  animation: ais-artifact-panel-in 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ais-animate-artifact-panel-in {
+    animation: none;
+  }
+}

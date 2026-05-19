@@ -1,0 +1,94 @@
+{
+  "name": "@anter/ai-chat-sdk",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./headless": {
+      "types": "./dist/headless/index.d.ts",
+      "import": "./dist/headless/index.js",
+      "default": "./dist/headless/index.js"
+    },
+    "./ui": {
+      "types": "./dist/ui/index.d.ts",
+      "import": "./dist/ui/index.js",
+      "default": "./dist/ui/index.js"
+    },
+    "./adapters": {
+      "types": "./dist/adapters/index.d.ts",
+      "import": "./dist/adapters/index.js",
+      "default": "./dist/adapters/index.js"
+    },
+    "./types": {
+      "types": "./dist/headless/types/index.d.ts",
+      "import": "./dist/headless/types/index.js",
+      "default": "./dist/headless/types/index.js"
+    },
+    "./styles.css": "./dist/styles/styles.css",
+    "./styles-no-base.css": "./dist/styles/styles-no-base.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": [
+    "./dist/styles/*.css"
+  ],
+  "scripts": {
+    "clean": "rimraf dist tsconfig.tsbuildinfo",
+    "build": "pnpm run clean && tsup && tsc -p tsconfig.build.json && mkdir -p dist/styles && cp src/styles/*.css dist/styles/",
+    "dev": "tsup --watch",
+    "test": "jest --config ./jest.config.cjs",
+    "test:watch": "jest --config ./jest.config.cjs --watch",
+    "type-check": "tsc --noEmit",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint .",
+    "check-lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "check-format": "prettier --check .",
+    "check-all": "pnpm check-format && pnpm check-lint && pnpm check-types && pnpm build"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-popover": "^1.1.15",
+    "@radix-ui/react-tabs": "^1.1.13",
+    "@radix-ui/react-tooltip": "^1.2.8",
+    "clsx": "^2.1.1",
+    "eventsource-parser": "^3.0.6",
+    "lucide-react": "^0.542.0",
+    "react-markdown": "^10.1.0",
+    "react-resizable-panels": "4.7.6",
+    "remark-gfm": "^4.0.1",
+    "tailwind-merge": "^3.3.1",
+    "zod": "^4.1.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@jest/globals": "^30.4.1",
+    "@types/jest": "^30.0.0",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "16.3.2",
+    "eslint": "^10.1.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-only-warn": "^1.2.1",
+    "jest": "^30.3.0",
+    "prettier": "3.8.1",
+    "rimraf": "^6.1.3",
+    "ts-jest": "^29.4.6",
+    "tsup": "^8.5.0",
+    "typescript": "^6.0.2",
+    "typescript-eslint": "^8.57.2"
+  }
+}

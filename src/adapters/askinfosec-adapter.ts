@@ -56,7 +56,8 @@ export class AskInfosecAdapter implements ChatAdapter {
   }
 
   async loadSession(sessionId: string): Promise<SessionWithMessages> {
-    const response = await this.request(`${this.memoryBase}/${sessionId}`, "GET");
+    const userSuffix = this.opts.userId ? `?userId=${encodeURIComponent(this.opts.userId)}` : "";
+    const response = await this.request(`${this.memoryBase}/${sessionId}${userSuffix}`, "GET");
     const json = (await response.json()) as {
       sessionId: string;
       agentId: string;
@@ -119,7 +120,8 @@ export class AskInfosecAdapter implements ChatAdapter {
   }
 
   async listSessions(params?: ListParams): Promise<SessionList> {
-    const response = await this.request(this.memoryBase, "GET");
+    const userSuffix = this.opts.userId ? `?userId=${encodeURIComponent(this.opts.userId)}` : "";
+    const response = await this.request(`${this.memoryBase}${userSuffix}`, "GET");
     const json = (await response.json()) as Array<{
       sessionId: string;
       updatedAt: number;
@@ -140,11 +142,13 @@ export class AskInfosecAdapter implements ChatAdapter {
   }
 
   async updateSession(sessionId: string, patch: SessionPatch): Promise<void> {
-    await this.request(`${this.memoryBase}/${sessionId}`, "PATCH", patch);
+    const userSuffix = this.opts.userId ? `?userId=${encodeURIComponent(this.opts.userId)}` : "";
+    await this.request(`${this.memoryBase}/${sessionId}${userSuffix}`, "PATCH", patch);
   }
 
   async deleteSession(sessionId: string): Promise<void> {
-    await this.request(`${this.memoryBase}/${sessionId}`, "DELETE");
+    const userSuffix = this.opts.userId ? `?userId=${encodeURIComponent(this.opts.userId)}` : "";
+    await this.request(`${this.memoryBase}/${sessionId}${userSuffix}`, "DELETE");
   }
 
   async sendMessage(payload: MessagePayload): Promise<ReadableStream<Uint8Array>> {

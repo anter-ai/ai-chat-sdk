@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { UseArtifactsReturn } from "../../headless/hooks/use-artifacts";
 import type { UseSourcesReturn } from "../../headless/hooks/use-sources";
+import { useChatContext } from "../../headless/context/chat-provider";
 import type { ChatMessage as ChatMessageType } from "../../headless/types/chat";
 import { ArtifactChip } from "./artifact-chip";
 import { RecordChip } from "./record-chip";
@@ -86,9 +87,19 @@ export function ChatMessage({
   onRecordClick,
   showSuggestions,
 }: ChatMessageProps) {
+  const { config } = useChatContext();
+  const enableArtifacts = config?.enableArtifacts ?? true;
+
   const { cleanedContent, extractedArtifacts } = React.useMemo(() => {
     if (message.role !== "assistant" || !message.content) {
       return { cleanedContent: message.content, extractedArtifacts: [] };
+    }
+    if (!enableArtifacts) {
+      const { cleanedContent: afterSuggestions } = extractSuggestionsFromContent(message.content);
+      return {
+        cleanedContent: afterSuggestions,
+        extractedArtifacts: [],
+      };
     }
     const result = extractArtifactsFromContent(message.content, message.id);
     // Strip any <suggestions> tags that slipped into the content string.
@@ -99,15 +110,15 @@ export function ChatMessage({
       cleanedContent: afterSuggestions,
       extractedArtifacts: result.artifacts,
     };
-  }, [message.content, message.role, message.id]);
+  }, [message.content, message.role, message.id, enableArtifacts]);
 
   const { registerArtifacts } = artifactsCtx;
 
   React.useEffect(() => {
-    if (extractedArtifacts.length > 0) {
+    if (enableArtifacts && extractedArtifacts.length > 0) {
       registerArtifacts(extractedArtifacts);
     }
-  }, [extractedArtifacts, registerArtifacts]);
+  }, [extractedArtifacts, registerArtifacts, enableArtifacts]);
 
   const handleCiteClick = React.useCallback(
     (scrollToIndex?: number) => {
@@ -192,7 +203,7 @@ export function ChatMessage({
             Retry
           </button>
         ) : null}
-        {!isUser && !message.isStreaming && allArtifactIds.length
+        {!isUser && !message.isStreaming && enableArtifacts && allArtifactIds.length
           ? allArtifactIds.map((id) => {
               const artifact =
                 artifactsCtx.artifacts.get(id) ||

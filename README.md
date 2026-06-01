@@ -459,16 +459,74 @@ A floating popover widget anchored to a corner of the screen. Uses a Radix UI `P
 />
 ```
 
-| Prop               | Type                                    | Default                      | Description                                                                          |
-| ------------------ | --------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------ |
-| `position`         | `"bottom-right" \| "bottom-left"`       | `"bottom-right"`             | Corner to anchor the widget trigger button                                           |
-| `initialOpen`      | `boolean`                               | `false`                      | Whether the popover opens on mount                                                   |
-| `fullChatUrl`      | `(sessionId: string \| null) => string` | —                            | Builds the URL for "Open full chat". `sessionId` is `null` when no session is active |
-| `onNavigate`       | `(url: string) => void`                 | —                            | Navigation callback. Pass your router's push function here                           |
-| `title`            | `string`                                | `orgLabel ?? "AI Assistant"` | Header title. Falls back to `orgLabel` set by the adapter, then `"AI Assistant"`     |
-| `subtitle`         | `string`                                | —                            | Optional header subtitle line                                                        |
-| `emptyState`       | `React.ReactNode`                       | —                            | Content shown before the first message                                               |
-| `onExportArtifact` | `(artifactId: string) => Promise<void>` | —                            | Artifact export callback; hides export button when omitted                           |
+| Prop               | Type                                                                 | Default                      | Description                                                                          |
+| ------------------ | -------------------------------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------ |
+| `position`         | `"bottom-right" \| "bottom-left"`                                    | `"bottom-right"`             | Corner to anchor the widget trigger button                                           |
+| `initialOpen`      | `boolean`                                                            | `false`                      | Whether the popover opens on mount                                                   |
+| `fullChatUrl`      | `(sessionId: string \| null) => string`                              | —                            | Builds the URL for "Open full chat". `sessionId` is `null` when no session is active |
+| `onNavigate`       | `(url: string) => void`                                              | —                            | Navigation callback. Pass your router's push function here                           |
+| `title`            | `string`                                                             | `orgLabel ?? "AI Assistant"` | Header title. Falls back to `orgLabel` set by the adapter, then `"AI Assistant"`     |
+| `subtitle`         | `string`                                                             | —                            | Optional header subtitle line                                                        |
+| `emptyState`       | `React.ReactNode`                                                    | —                            | Content shown before the first message                                               |
+| `onExportArtifact` | `(artifactId: string) => Promise<void>`                              | —                            | Artifact export callback; hides export button when omitted                           |
+| `trigger`          | `React.ReactNode \| ((props: { open: boolean }) => React.ReactNode)` | —                            | Custom trigger element or render function to replace default floating bubble button  |
+
+#### Customizing the Widget Trigger
+
+You can completely customize or replace the default floating bubble button using the `trigger` prop. This prop accepts either a static React element or a render function that receives the current popover `open` state.
+
+**Example 1: Using a static React element**
+
+```tsx
+<ChatWidget
+  fullChatUrl={(id) => `/chat/${id}`}
+  onNavigate={(url) => router.push(url)}
+  trigger={
+    <button className="custom-chat-button">
+      <span>Chat with AI</span>
+    </button>
+  }
+/>
+```
+
+**Example 2: Using a render function (state-aware trigger)**
+
+```tsx
+<ChatWidget
+  fullChatUrl={(id) => `/chat/${id}`}
+  onNavigate={(url) => router.push(url)}
+  trigger={({ open }) => (
+    <button className={`custom-chat-button ${open ? "is-active" : ""}`}>
+      {open ? "Close Chat" : "Open Chat"}
+    </button>
+  )}
+/>
+```
+
+> [!NOTE]
+> The custom trigger is wrapped in Radix UI's `<Popover.Trigger asChild>`. Ensure your custom trigger element accepts refs and forwards standard event handlers/props correctly (e.g. standard HTML buttons work automatically).
+
+**Example 3: CSS customizations**
+
+If you prefer to style or disable the default trigger's disk-like orbit animation or green notification indicator using custom CSS, you can target the respective class names in your stylesheet:
+
+```css
+/* Disable the rotating disk-like orbit hover animation */
+.ais-widget-trigger-orbit {
+  display: none !important;
+}
+
+/* Hide the active status ping dot */
+.ais-widget-trigger-ping {
+  display: none !important;
+}
+
+/* Customize the button's background and hover state */
+.ais-widget-trigger {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
+  box-shadow: 0 10px 20px rgba(79, 70, 229, 0.3) !important;
+}
+```
 
 ---
 

@@ -15,10 +15,12 @@ export function CommandPalette() {
   const commands = getCommandRegistry();
   const { sessions, isLoading } = useConversationHistory();
   const { loadSession } = useChat();
-  const { adapter } = useChatContext();
+  const { adapter, config } = useChatContext();
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   useEffect(() => {
+    if (!config?.enableCommandPalette) return;
+
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -37,7 +39,7 @@ export function CommandPalette() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("ais-open-command-palette", handleOpen);
     };
-  }, []);
+  }, [config?.enableCommandPalette]);
 
   const q = query.toLowerCase().trim();
 

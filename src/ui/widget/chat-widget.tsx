@@ -27,6 +27,8 @@ interface ChatWidgetProps {
   subtitle?: string;
   /** Consumer-supplied empty state shown when there are no messages. */
   emptyState?: React.ReactNode;
+  /** Custom trigger element. When provided, replaces the default floating bubble button. */
+  trigger?: React.ReactNode | ((props: { open: boolean }) => React.ReactNode);
 }
 
 export function ChatWidget({
@@ -38,6 +40,7 @@ export function ChatWidget({
   title,
   subtitle,
   emptyState,
+  trigger,
 }: ChatWidgetProps) {
   return (
     <ChatStateProvider>
@@ -50,6 +53,7 @@ export function ChatWidget({
         title={title}
         subtitle={subtitle}
         emptyState={emptyState}
+        trigger={trigger}
       />
     </ChatStateProvider>
   );
@@ -64,6 +68,7 @@ function ChatWidgetContent({
   title,
   subtitle,
   emptyState,
+  trigger,
 }: ChatWidgetProps) {
   const [open, setOpen] = useState(initialOpen);
   const { config, orgLabel } = useChatContext();
@@ -88,17 +93,25 @@ function ChatWidgetContent({
     <div className={`ais-widget-root ${position}`}>
       <Popover.Root onOpenChange={setOpen} open={open}>
         <Popover.Trigger asChild>
-          <button
-            aria-label={open ? "Close AI widget" : "Open AI widget"}
-            className="ais-widget-trigger"
-            type="button"
-          >
-            <span aria-hidden="true" className="ais-widget-trigger-orbit" />
-            <span className="ais-widget-trigger-icon-wrap">
-              <MessageCircle size={19} />
-            </span>
-            <span aria-hidden="true" className="ais-widget-trigger-ping" />
-          </button>
+          {trigger ? (
+            typeof trigger === "function" ? (
+              trigger({ open })
+            ) : (
+              trigger
+            )
+          ) : (
+            <button
+              aria-label={open ? "Close AI widget" : "Open AI widget"}
+              className="ais-widget-trigger"
+              type="button"
+            >
+              <span aria-hidden="true" className="ais-widget-trigger-orbit" />
+              <span className="ais-widget-trigger-icon-wrap">
+                <MessageCircle size={19} />
+              </span>
+              <span aria-hidden="true" className="ais-widget-trigger-ping" />
+            </button>
+          )}
         </Popover.Trigger>
         <Popover.Portal>
           <Popover.Content

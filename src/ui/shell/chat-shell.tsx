@@ -107,7 +107,7 @@ function ChatShellContent({
     currentSessionId,
     currentSessionTitle,
   } = useChat();
-  const { setAnnouncement } = useChatContext();
+  const { setAnnouncement, config } = useChatContext();
 
   React.useEffect(() => {
     if (!tips.length) return;
@@ -164,7 +164,8 @@ function ChatShellContent({
     onSessionChange?.(currentSessionId);
   }, [currentSessionId, onSessionChange]);
 
-  const embedPanelIsOpen = !!recordPanel || artifactsCtx.panelState.isOpen;
+  const embedPanelIsOpen =
+    !!recordPanel || (config.enableArtifacts && artifactsCtx.panelState.isOpen);
 
   const filesOpen = enableFileUpload && filesCtx.panelOpen;
   const innerRightPanelIsOpen = sourcesCtx.panelState.isOpen || filesOpen;
@@ -376,7 +377,7 @@ function ChatShellContent({
           >
             <div className="ais-embed-panel">
               {recordPanel ??
-                (artifactsCtx.panelState.isOpen && (
+                (config.enableArtifacts && artifactsCtx.panelState.isOpen && (
                   <ArtifactPanel artifactsCtx={artifactsCtx} onExportArtifact={onExportArtifact} />
                 ))}
             </div>
@@ -388,7 +389,7 @@ function ChatShellContent({
         <div className="ais-mobile-sidebar-backdrop" onClick={() => setSidebarOpen(false)} />
       )}
 
-      <CommandPalette />
+      {config.enableCommandPalette && <CommandPalette />}
     </div>
   );
 }

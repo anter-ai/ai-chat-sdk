@@ -75,7 +75,11 @@ function ChatWidgetContent({
   const hasMessages = messages.length > 0;
   const showSourcesPanel = sourcesCtx.panelState.isOpen;
   const showFilesPanel = config.enableFileUpload && filesCtx.panelOpen && !showSourcesPanel;
-  const showArtifactPanel = artifactsCtx.panelState.isOpen && !showSourcesPanel && !showFilesPanel;
+  const showArtifactPanel =
+    config.enableArtifacts &&
+    artifactsCtx.panelState.isOpen &&
+    !showSourcesPanel &&
+    !showFilesPanel;
   const isAnyPanelOpen = showSourcesPanel || showFilesPanel || showArtifactPanel;
 
   const widgetTitle = title ?? orgLabel ?? "AI Assistant";

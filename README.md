@@ -40,6 +40,8 @@ An industry-agnostic, embeddable AI chat SDK for React applications. Drop a full
 - [AnterAdapter](#anteradapter)
 - [Development](#development)
 - [CSS architecture](#css-architecture)
+- [Whitelabeling & Custom Theming](#whitelabeling--custom-theming)
+- [ChatWidget: Stateless & Public-Site Mode](#chatwidget-stateless--public-site-mode)
 - [TypeScript](#typescript)
 
 ---
@@ -1561,6 +1563,267 @@ Below is the list of JavaScript keys supported in the `ChatTheme` interface, the
 | `radiusLg`         | `--chat-radius-lg`         | Large border radius applied to major components such as the main composer input container.      |
 | `sidebarWidth`     | `--chat-sidebar-width`     | Base width of the left collapsible sidebar panel (e.g. `"288px"`).                              |
 | `artifactWidth`    | `--chat-artifact-width`    | Base/collapsed width of the right resizable panel area (e.g. `"400px"`).                        |
+
+---
+
+## ChatWidget: Stateless & Public-Site Mode
+
+Deploying the `ChatWidget` on a public-facing branded site or marketing landing page often requires a widget-only embed. This deployment mode operates with:
+
+1. **Widget-Only Navigation**: Stubbing out or hiding navigation redirects since a dedicated full-chat view or route is not available.
+2. **Stateless/Ephemeral Conversations**: Single-session interactions with no persistence, no user authentication, and no session history loading.
+3. **Secure API Secrets at the Edge**: Intercepting chat streams through an edge proxy to inject project-level credentials so sensitive API keys are never exposed to client browsers.
+4. **Non-Disruptive Styling**: Importing isolated styles that do not reset the global CSS baseline of your landing page, and scoping your brand's style custom properties.
+
+### 1. Widget-Only Navigation
+
+Because `ChatWidget` is designed to support switching between standard widget view and full conversation view, it requires `fullChatUrl` and `onNavigate` props. To restrict interaction purely to the widget:
+
+- Return `"#"` from the `fullChatUrl` callback.
+- Provide a no-op function for the `onNavigate` callback.
+
+```tsx
+import { ChatProvider, ChatWidget } from "@anter/ai-chat-sdk";
+import { MyAdapter } from "./my-adapter";
+
+export default function App() {
+  return (
+    <ChatProvider organizationId="your-org-id" adapter={new MyAdapter()}>
+      <ChatWidget
+        title="AI Assistant"
+        subtitle="Ask us anything"
+        position="bottom-right"
+        // Gracefully satisfy widget props for widget-only mode
+        fullChatUrl={() => "#"}
+        onNavigate={() => undefined}
+      />
+    </ChatProvider>
+  );
+}
+```
+
+#### Hiding the "Open full chat" Button
+
+To completely hide the "Open full chat" icon button from the widget header UI, apply a targeted CSS override in your global stylesheet:
+
+```css
+/* Hide "Open full chat" icon button in widget-only deployments */
+[data-chat-provider] button[aria-label="Open full chat"] {
+  display: none !important;
+}
+```
+
+### 2. Ephemeral Chat Adapter Template
+
+Since public landing widgets do not manage user accounts or persist chat history locally, you can stub out session management in your `ChatAdapter`. The chat widget will run successfully in a single, local ephemeral session:
+
+```typescript
+import type {
+  ChatAdapter,
+  ListParams,
+  MessagePayload,
+  SessionConfig,
+  SessionList,
+  SessionPatch,
+  SessionWithMessages,
+} from "@anter/ai-chat-sdk/types";
+
+export class EphemeralChatAdapter implements ChatAdapter {
+  private readonly streamUrl = "/api/v1/chat-stream";
+
+  async sendMessage(payload: MessagePayload): Promise<ReadableStream<Uint8Array>> {
+    const res = await fetch(this.streamUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: payload.message,
+        organizationId: payload.organizationId,
+      }),
+    });
+
+    if (!res.ok) throw new Error(`sendMessage failed: ${res.status}`);
+    if (!res.body) throw new Error("Missing response body");
+
+    return res.body;
+  }
+
+  // ─── Ephemeral Session Stubs ──────────────────────────────────────────────
+
+  async createSession(_config: SessionConfig): Promise<string> {
+    // Generate a temporary local ID
+    return `session-${Date.now()}`;
+  }
+
+  async loadSession(sessionId: string): Promise<SessionWithMessages> {
+    // Return empty initial state for a fresh ephemeral session
+    return {
+      sessionId,
+      title: "",
+      updatedAt: new Date().toISOString(),
+      messages: [],
+    };
+  }
+
+  async listSessions(_params?: ListParams): Promise<SessionList> {
+    // Return empty lists so no session sidebar or history is rendered
+    return { sessions: [], total: 0, page: 0 };
+  }
+
+  async updateSession(_sessionId: string, _patch: SessionPatch): Promise<void> {
+    // No-op (no backend update needed)
+  }
+
+  async deleteSession(_sessionId: string): Promise<void> {
+    // No-op
+  }
+}
+```
+
+### 3. Secure Browser Integration via Edge Proxy
+
+To prevent leaking sensitive backend credentials (such as API keys or project IDs) into the client browser bundle, route API calls through a local endpoint (e.g. `/api/*`) and inject authorization headers at your hosting provider's edge or during local server proxying.
+
+#### Cloudflare Pages Worker (`_worker.js`)
+
+If deploying to Cloudflare Pages, use an edge worker proxy to rewrite incoming requests, securely inject environment variables, and forward requests to the Anter API:
+
+```javascript
+// public/_worker.js
+const DEFAULT_BACKEND_API_URL = "https://api.anter.ai";
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+
+    // Proxy /api/* requests to the real API backend
+    if (url.pathname.startsWith("/api/")) {
+      if (request.method === "OPTIONS") {
+        return new Response(null, {
+          status: 204,
+          headers: {
+            "Access-Control-Allow-Origin": env.ALLOWED_ORIGIN || "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          },
+        });
+      }
+
+      const backendBaseUrl = (env.BACKEND_API_URL || DEFAULT_BACKEND_API_URL).trim();
+      const targetPath = url.pathname.replace(/^\/api/, "") || "/";
+      const targetUrl = new URL(targetPath + url.search, backendBaseUrl);
+
+      const headers = new Headers(request.headers);
+      headers.delete("host");
+
+      // Inject server-side secret credentials securely
+      if (env.CF_PROJECT_ID) headers.set("x-project-id", env.CF_PROJECT_ID);
+      if (env.CF_API_KEY) headers.set("x-api-key", env.CF_API_KEY);
+
+      try {
+        const response = await fetch(targetUrl, {
+          method: request.method,
+          headers,
+          body: request.method !== "GET" && request.method !== "HEAD" ? request.body : undefined,
+          redirect: "manual",
+        });
+
+        // Forward response along with CORS headers
+        const proxied = new Response(response.body, response);
+        proxied.headers.set("Access-Control-Allow-Origin", env.ALLOWED_ORIGIN || "*");
+        return proxied;
+      } catch (error) {
+        return new Response(JSON.stringify({ error: "Proxy error", message: String(error) }), {
+          status: 502,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // Default: fall back to serving static assets
+    return env.ASSETS.fetch(request);
+  },
+};
+```
+
+#### Vite Local Dev Proxy (`vite.config.js`)
+
+To mirror this exact Edge Proxy behavior in local development without running a Cloudflare worker, configure the Vite dev server proxy to rewrite paths and inject your local `.env` development keys:
+
+```javascript
+// vite.config.js
+import { defineConfig, loadEnv } from "vite";
+import react from "@vitejs/plugin-react";
+
+export default defineConfig(({ mode }) => {
+  // Load local environment variables (Node-side only, never bundled in client)
+  const env = loadEnv(mode, process.cwd(), "");
+  const backendOrigin = (env.BACKEND_API_URL || "https://api.anter.ai").replace(/\/$/, "");
+
+  return {
+    plugins: [react()],
+    server: {
+      proxy: {
+        // Forward /api/* -> BACKEND_API_URL and inject local secrets
+        "/api": {
+          target: backendOrigin,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, ""),
+          configure: (proxy) => {
+            proxy.on("proxyReq", (proxyReq) => {
+              if (env.CF_PROJECT_ID) proxyReq.setHeader("x-project-id", env.CF_PROJECT_ID);
+              if (env.CF_API_KEY) proxyReq.setHeader("x-api-key", env.CF_API_KEY);
+            });
+          },
+        },
+      },
+    },
+  };
+});
+```
+
+### 4. Non-Disruptive Stylesheet Integration
+
+When embedding a widget, you must prevent the SDK stylesheet from overwriting your main site's carefully designed base typography, headers, list item alignments, or button resets.
+
+#### Importing component styles without global resets
+
+Import `styles-no-base.css` in your React app entrypoint (instead of standard `styles.css`). This contains all component styles for the widget but leaves the global HTML baseline reset untouched:
+
+```typescript
+// src/main.tsx
+import "./index.css"; // Your marketing site stylesheet
+import "@anter/ai-chat-sdk/styles-no-base.css"; // Isolated Chat Widget styles
+import App from "./App";
+```
+
+#### Scoped CSS Variable Brand Customization
+
+Scope all theme overrides to `[data-chat-provider]` to completely isolate the widget's brand colors from the rest of your page:
+
+```css
+/* index.css */
+
+[data-chat-provider] {
+  /* Mapped brand colors */
+  --chat-accent: #10b981; /* Custom brand primary */
+  --chat-accent-hover: #059669;
+  --chat-accent-foreground: #ffffff;
+
+  /* Theme backgrounds */
+  --chat-bg: #faf8f2;
+  --chat-sidebar-bg: #f1ede2;
+  --artifact-bg: #fffdf7;
+  --chat-border: #e8e2d3;
+
+  /* Message bubbles matching marketing colors */
+  --message-user-bg: #fffdf7;
+  --message-user-text: #1a1814;
+  --message-ai-bg: transparent;
+  --message-ai-text: #1a1814;
+
+  --chat-muted: #6a6358;
+}
+```
 
 ---
 

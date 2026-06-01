@@ -125,6 +125,30 @@ export function ChatComposer({ onSendMessage, isStreaming, className }: ChatComp
   }, []);
 
   useEffect(() => {
+    if (!config?.enableSlashFocusShortcut) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const active = document.activeElement;
+      if (
+        active &&
+        (active.tagName === "INPUT" ||
+          active.tagName === "TEXTAREA" ||
+          active.getAttribute("contenteditable") === "true")
+      ) {
+        return;
+      }
+
+      if (e.key === "/") {
+        e.preventDefault();
+        textareaRef.current?.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [config?.enableSlashFocusShortcut]);
+
+  useEffect(() => {
     if (!showSlashMenu) {
       setActiveSlashIndex(0);
       if (slashMenuItems.length > 0) {

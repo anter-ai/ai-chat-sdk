@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useChatContext } from "../../headless/context/chat-provider";
 
 export interface StarterCard {
   /** A React node rendered as the card icon (e.g. a Lucide icon component). */
@@ -24,6 +25,14 @@ export function ChatEmptyState({
   heading = "What would you like to work on today?",
   subheading,
 }: ChatEmptyStateProps) {
+  let enableSlashCommands = true;
+  try {
+    const { config } = useChatContext();
+    enableSlashCommands = config.enableSlashCommands;
+  } catch {
+    // Graceful fallback if rendered outside a ChatProvider
+  }
+
   return (
     <div className="ais-empty-state">
       <div className="ais-empty-state-inner">
@@ -61,9 +70,11 @@ export function ChatEmptyState({
           </div>
         )}
 
-        <p className="ais-empty-hint">
-          Or type <kbd>/</kbd> for slash commands
-        </p>
+        {enableSlashCommands && (
+          <p className="ais-empty-hint">
+            Or type <kbd>/</kbd> for slash commands
+          </p>
+        )}
       </div>
     </div>
   );

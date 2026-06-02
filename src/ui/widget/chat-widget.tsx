@@ -31,6 +31,17 @@ interface ChatWidgetProps {
   trigger?: React.ReactNode | ((props: { open: boolean }) => React.ReactNode);
 }
 
+function resolveFullChatUrl(
+  fullChatUrl: (sessionId: string | null) => string,
+  sessionId: string | null,
+): string | null {
+  const url = fullChatUrl(sessionId).trim();
+  if (!url || url === "#") {
+    return null;
+  }
+  return url;
+}
+
 export function ChatWidget({
   position = "bottom-right",
   initialOpen = false,
@@ -78,6 +89,7 @@ function ChatWidgetContent({
   const filesCtx = useSessionFiles();
 
   const hasMessages = messages.length > 0;
+  const fullChatHref = resolveFullChatUrl(fullChatUrl, currentSessionId ?? null);
   const showSourcesPanel = sourcesCtx.panelState.isOpen;
   const showFilesPanel = config.enableFileUpload && filesCtx.panelOpen && !showSourcesPanel;
   const showArtifactPanel =
@@ -157,14 +169,16 @@ function ChatWidgetContent({
                 >
                   <Plus size={14} />
                 </button>
-                <button
-                  aria-label="Open full chat"
-                  title="Open full chat"
-                  onClick={() => onNavigate(fullChatUrl(currentSessionId ?? null))}
-                  type="button"
-                >
-                  <ExternalLink size={14} />
-                </button>
+                {fullChatHref && (
+                  <button
+                    aria-label="Open full chat"
+                    title="Open full chat"
+                    onClick={() => onNavigate(fullChatHref)}
+                    type="button"
+                  >
+                    <ExternalLink size={14} />
+                  </button>
+                )}
                 <button
                   aria-label="Close chat widget"
                   title="Close chat widget"

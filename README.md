@@ -1637,7 +1637,7 @@ Deploying the `ChatWidget` on a public-facing branded site or marketing landing 
 
 Because `ChatWidget` is designed to support switching between standard widget view and full conversation view, it requires `fullChatUrl` and `onNavigate` props. To restrict interaction purely to the widget:
 
-- Return `"#"` from the `fullChatUrl` callback.
+- Return `"#"` from the `fullChatUrl` callback. This now automatically hides the "Open full chat" icon button.
 - Provide a no-op function for the `onNavigate` callback.
 
 ```tsx
@@ -1662,14 +1662,7 @@ export default function App() {
 
 #### Hiding the "Open full chat" Button
 
-To completely hide the "Open full chat" icon button from the widget header UI, apply a targeted CSS override in your global stylesheet:
-
-```css
-/* Hide "Open full chat" icon button in widget-only deployments */
-[data-chat-provider] button[aria-label="Open full chat"] {
-  display: none !important;
-}
-```
+The "Open full chat" icon button is hidden automatically whenever `fullChatUrl` resolves to `"#"` (or an empty string) for the current session.
 
 ### 2. Ephemeral Chat Adapter Template
 

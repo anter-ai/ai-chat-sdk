@@ -22,7 +22,15 @@ import type {
 import type { SessionWithMessages } from "../types/session";
 import type { ChatAdapter } from "../types/adapter";
 import type { Artifact } from "../types/artifact";
-import { extractContent, extractError, resolveEventType } from "./stream-event-utils";
+import {
+  extractContent,
+  extractError,
+  isRunnerCompletion,
+  isRunnerControlEvent,
+  resolveEventType,
+  runnerEventToStep,
+  runnerStepConsumesSeq,
+} from "./stream-event-utils";
 import { getSlashCommandRegistry } from "../../extensions/slash-command-registry";
 
 import { extractArtifactsFromContent } from "../utils/artifact-utils";
@@ -128,6 +136,9 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
   const onArtifactsReadyRef = useRef(onArtifactsReady);
   onArtifactsReadyRef.current = onArtifactsReady;
   const accumContentRef = useRef("");
+  // Per-stream counter giving repeatable runner control events (tool calls, handoffs)
+  // unique step ids. Reset at the start of each sendMessage.
+  const stepSeqRef = useRef(0);
   const activeContextIdRef = useRef(activeContextId);
   activeContextIdRef.current = activeContextId;
   const persistentContextVariablesRef = useRef(persistentContextVariables);
@@ -204,6 +215,7 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
       const userMessage = createUserMessage(trimmed);
       const assistantMessage = createAssistantMessage();
       accumContentRef.current = "";
+      stepSeqRef.current = 0;
 
       const messagesToInsert: ChatMessage[] = matchedCommand
         ? [
@@ -274,6 +286,23 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
 
             const outerEventType = resolveEventType(event.event, parsed);
 
+            // The agent-runner emits control events (thought/tool_call/tool_result/status and the
+            // multi-agent handoff frames) that must surface as step chips, never as message text.
+            const isRunnerControl = isRunnerControlEvent(outerEventType);
+            const isCompletionSignal =
+              outerEventType === "done" ||
+              parsed.isComplete === true ||
+              parsed.type === "complete" ||
+              isRunnerCompletion(outerEventType, parsed);
+
+            let runnerStep: AgentStepEvent | null = null;
+            if (isRunnerControl) {
+              runnerStep = runnerEventToStep(outerEventType, parsed, stepSeqRef.current);
+              if (runnerStep && runnerStepConsumesSeq(outerEventType)) {
+                stepSeqRef.current += 1;
+              }
+            }
+
             if (outerEventType === "artifact" && parsed.payload) {
               onArtifactsReadyRef.current?.([parsed.payload as unknown as Artifact]);
             }
@@ -291,7 +320,7 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
             }
 
             const rawParsedContent = extractContent(parsed);
-            if (rawParsedContent && outerEventType !== "artifact") {
+            if (rawParsedContent && outerEventType !== "artifact" && !isRunnerControl) {
               accumContentRef.current += rawParsedContent;
             }
 
@@ -301,7 +330,7 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
             let frontendCitations: MessageSource[] = [];
             let frontendRecords: RecordTag[] = [];
             let frontendSuggestions: string[] = [];
-            if (outerEventType === "done" || parsed.isComplete) {
+            if (isCompletionSignal) {
               const extracted = extractArtifactsFromContent(
                 originalAccumContent,
                 assistantMessage.id,
@@ -349,9 +378,7 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
                 const payloadArtifactIds = Array.isArray(payload?.artifactIds)
                   ? (payload.artifactIds as string[])
                   : undefined;
-                const isComplete = Boolean(
-                  parsed.isComplete || eventType === "done" || parsed.type === "complete",
-                );
+                const isComplete = isCompletionSignal;
 
                 if (eventType === "artifact" && payload) {
                   const artifact = payload as unknown as Artifact;
@@ -371,6 +398,20 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
                   return { ...msg, steps: nextSteps };
                 }
 
+                // Runner control event mapped to a step chip (thought → reasoning,
+                // tool_call/tool_result → tool steps, handoff → skill boundary). Returning
+                // here also prevents thought reasoning text from leaking into the bubble.
+                if (runnerStep) {
+                  const step = runnerStep;
+                  const existing = msg.steps ?? [];
+                  const idx = existing.findIndex((s) => s.step_id === step.step_id);
+                  const nextSteps =
+                    idx >= 0
+                      ? existing.map((s, i) => (i === idx ? { ...s, ...step } : s))
+                      : [...existing, step];
+                  return { ...msg, steps: nextSteps };
+                }
+
                 if (eventType === "plan" && parsed.plan) {
                   return { ...msg, plan: parsed.plan.phases };
                 }
@@ -386,7 +427,7 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
                   };
                 }
 
-                if (eventType === "done" || parsed.isComplete) {
+                if (isComplete) {
                   const backendArtifactIds =
                     parsed.artifactIds ?? payloadArtifactIds ?? msg.artifactIds;
                   const allArtifactIds = [
@@ -444,7 +485,7 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
             );
 
             const eventType = resolveEventType(event.event, parsed);
-            if (eventType === "done" || eventType === "error" || parsed.isComplete) {
+            if (isCompletionSignal || eventType === "error") {
               setStreamingState({ isStreaming: false });
               setIsLoading(false);
             }

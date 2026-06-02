@@ -13,6 +13,12 @@ jest.mock("remark-gfm", () => ({
   default: {},
 }));
 
+// ChatMessage reads `config` from context; provide a minimal stub so it can render
+// in isolation (artifacts/sources contexts are passed in as props).
+jest.mock("../../headless/context/chat-provider", () => ({
+  useChatContext: () => ({ config: { enableArtifacts: true } }),
+}));
+
 describe("ChatMessage", () => {
   const mockOnRetry = jest.fn();
   const mockOnFollowUp = jest.fn();

@@ -112,26 +112,25 @@ export function ReasoningBlock({ steps, plan, isStreaming, elapsedMs }: Reasonin
         )}
         aria-expanded={expanded}
       >
-        <div className="flex w-full items-center gap-2.5">
+        <div className="ais-reasoning-headrow flex w-full items-center gap-3">
           <SparkleIcon
-            spinning={false}
-            className={cn("shrink-0", isStreaming ? "text-primary" : "text-muted-foreground/50")}
+            spinning={isStreaming}
+            className={cn(
+              "shrink-0",
+              isStreaming ? "ais-reasoning-icon" : "ais-reasoning-icon--idle",
+            )}
           />
 
           <span
             className={cn(
-              "flex-1 truncate tracking-tight",
+              "ais-reasoning-label flex-1 truncate tracking-tight",
               isStreaming && "ais-reasoning-label--active",
             )}
           >
             {headerLabel}
           </span>
 
-          {seconds !== null && (
-            <span className="shrink-0 font-mono text-[9px] text-muted-foreground/40 tabular-nums uppercase tracking-widest">
-              {seconds}s
-            </span>
-          )}
+          {seconds !== null && <span className="ais-reasoning-seconds">{seconds}s</span>}
         </div>
 
         {isStreaming && <div className="ais-reasoning-sweep" aria-hidden />}
@@ -171,30 +170,24 @@ export function ReasoningBlock({ steps, plan, isStreaming, elapsedMs }: Reasonin
                   const isSkillCurrent = isStreaming && isLastGroup && group.steps.length === 0;
 
                   return (
-                    <li key={group.skill.step_id}>
-                      {/* Level 1: Skill name (collapsible) */}
+                    <li key={group.skill.step_id} className="ais-reasoning-skill">
+                      {/* Level 1: Skill name. A soft vertical guide line (CSS) replaces the
+                          expand chevron; the row stays clickable to toggle its steps. */}
                       <button
                         type="button"
                         onClick={() => toggleSkill(group.skill.step_id)}
                         className={cn(
-                          "group/skill flex w-full items-center gap-2 rounded py-0.5 pl-6 text-left transition-colors",
+                          "group/skill flex w-full items-center gap-2 rounded py-0.5 text-left transition-colors",
                           "hover:bg-muted/30",
                           isSkillCurrent
                             ? "text-foreground/90"
                             : "font-medium text-foreground/75 hover:text-foreground/90",
                         )}
                       >
-                        <ChevronDown
-                          className={cn(
-                            "h-3 w-3 shrink-0 text-muted-foreground/40 transition-transform duration-150",
-                            !isSkillOpen && "-rotate-90",
-                          )}
-                          aria-hidden
-                        />
                         <span
                           className={cn(
-                            "flex-1 truncate tracking-tight",
-                            isSkillCurrent && "animate-pulse",
+                            "ais-reasoning-label flex-1 truncate tracking-tight",
+                            isSkillCurrent && "ais-reasoning-label--active",
                           )}
                         >
                           {group.skill.label}

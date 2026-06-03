@@ -2979,8 +2979,11 @@
 .ais-reasoning-toggle {
   width: 100%;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  /* Column so the streaming sweep bar always sits BELOW the header row, never
+     inline on the right (do not rely on the host compiling Tailwind flex-col). */
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
   border: none;
   background: transparent;
   color: var(--message-ai-text);
@@ -3093,36 +3096,32 @@
   }
 }
 
-/* Soft shimmer swept across the active step label (Gemini-style "thinking"). */
+/* Active step label — a solid, always-visible emerald-tinted color. (The earlier
+   background-clip:text shimmer could render the text invisible where clip-to-text
+   isn't honored, so the "alive" motion now lives only in the sweep bar + the
+   fade-on-change below.) */
 .ais-reasoning-label--active {
-  background-image: linear-gradient(
-    90deg,
-    var(--muted-foreground, #6b7280) 0%,
-    var(--muted-foreground, #6b7280) 35%,
-    color-mix(
-        in oklab,
-        var(--chat-accent, var(--primary, #10b981)) 70%,
-        var(--message-ai-text, #111827)
-      )
-      50%,
-    var(--muted-foreground, #6b7280) 65%,
-    var(--muted-foreground, #6b7280) 100%
+  color: color-mix(
+    in oklab,
+    var(--chat-accent, var(--primary, #10b981)) 32%,
+    var(--message-ai-text, #111827)
   );
-  background-size: 200% 100%;
-  background-repeat: no-repeat;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-  animation: ais-reasoning-shimmer 2.4s linear infinite;
 }
 
-@keyframes ais-reasoning-shimmer {
+/* Cross-fade the label whenever the step text changes (keyed remount in the
+   component). Keeps text present and gently animates between steps. */
+.ais-reasoning-textfade {
+  animation: ais-reasoning-textin 260ms ease;
+}
+
+@keyframes ais-reasoning-textin {
   from {
-    background-position: 200% 0;
+    opacity: 0;
+    transform: translateY(2px);
   }
   to {
-    background-position: -200% 0;
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -3131,9 +3130,8 @@
     animation: none;
     background-position: 50% 0;
   }
-  .ais-reasoning-label--active {
+  .ais-reasoning-textfade {
     animation: none;
-    background-position: 50% 0;
   }
 }
 

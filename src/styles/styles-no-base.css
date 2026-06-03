@@ -3007,6 +3007,90 @@
   margin-left: 22px;
 }
 
+/* ── Streaming "alive" cues for the reasoning header ───────────────────────────
+   Emerald (theme-native) gradient sweep beneath the header + a soft label
+   shimmer, replacing the old chevron/pulse. Driven by the chat accent token so
+   it adapts to light/dark and host theming. */
+.ais-reasoning-sweep {
+  position: relative;
+  height: 2px;
+  width: 100%;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--chat-accent, var(--primary, #10b981)) 12%, transparent);
+}
+
+.ais-reasoning-sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklab, var(--chat-accent, var(--primary, #10b981)) 55%, transparent) 30%,
+    color-mix(in oklab, var(--chat-accent, var(--primary, #10b981)) 95%, white) 50%,
+    color-mix(in oklab, var(--chat-accent, var(--primary, #10b981)) 55%, transparent) 70%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: ais-reasoning-sweep 1.6s linear infinite;
+}
+
+@keyframes ais-reasoning-sweep {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* Soft shimmer swept across the active step label (Gemini-style "thinking"). */
+.ais-reasoning-label--active {
+  background-image: linear-gradient(
+    90deg,
+    var(--muted-foreground, #6b7280) 0%,
+    var(--muted-foreground, #6b7280) 35%,
+    color-mix(
+        in oklab,
+        var(--chat-accent, var(--primary, #10b981)) 70%,
+        var(--message-ai-text, #111827)
+      )
+      50%,
+    var(--muted-foreground, #6b7280) 65%,
+    var(--muted-foreground, #6b7280) 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: ais-reasoning-shimmer 2.4s linear infinite;
+}
+
+@keyframes ais-reasoning-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ais-reasoning-sweep::after {
+    animation: none;
+    background-position: 50% 0;
+  }
+  .ais-reasoning-label--active {
+    animation: none;
+    background-position: 50% 0;
+  }
+}
+
 .ais-spin {
   animation: ais-spin 1s linear infinite;
 }

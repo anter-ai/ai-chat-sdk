@@ -72,7 +72,12 @@ export function ReasoningBlock({ steps, plan, isStreaming, elapsedMs }: Reasonin
     return expanded ? "Hide reasoning" : "Show reasoning";
   }, [isStreaming, steps, expanded]);
 
-  if (!isStreaming && !steps.length && !plan?.length) return null;
+  // Persist after a completed stream (elapsedMs is set) so the user can still review
+  // the reasoning. Only fully hide when there's nothing to show and it never ran
+  // (e.g. assistant messages loaded from history, which carry no steps).
+  if (!isStreaming && !steps.length && !plan?.length && typeof elapsedMs !== "number") {
+    return null;
+  }
 
   const seconds =
     !isStreaming && typeof elapsedMs === "number"
@@ -122,8 +127,9 @@ export function ReasoningBlock({ steps, plan, isStreaming, elapsedMs }: Reasonin
           />
 
           <span
+            key={headerLabel}
             className={cn(
-              "ais-reasoning-label flex-1 truncate tracking-tight",
+              "ais-reasoning-label ais-reasoning-textfade flex-1 truncate tracking-tight",
               isStreaming && "ais-reasoning-label--active",
             )}
           >
@@ -332,7 +338,7 @@ export function ReasoningBlock({ steps, plan, isStreaming, elapsedMs }: Reasonin
                     </li>
                   );
                 })}
-                {!isStreaming && steps.length > 0 && (
+                {!isStreaming && (
                   <li className="flex items-start gap-3 opacity-60">
                     <div className="w-2 shrink-0" />
                     <span className="tracking-tight text-muted-foreground/80">

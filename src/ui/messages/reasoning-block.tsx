@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "../../lib/cn";
 import type { AgentPlanPhase, AgentStepEvent } from "../../headless/types/chat";
 
@@ -100,50 +100,41 @@ export function ReasoningBlock({ steps, plan, isStreaming, elapsedMs }: Reasonin
       className={cn("ais-reasoning-block mb-2 text-xs transition-all duration-200")}
       aria-live="polite"
     >
-      {/* Toggle header */}
+      {/* Toggle header — whole row is clickable; no chevron. While streaming, an
+          emerald gradient sweep + label shimmer convey "in progress" (see CSS). */}
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
         className={cn(
-          "ais-reasoning-toggle group flex w-full items-center gap-2.5 rounded-md px-1.5 py-1.5 text-left transition-all",
-          "hover:bg-muted/40 active:scale-[0.98]",
+          "ais-reasoning-toggle group flex w-full flex-col gap-1 rounded-md px-1.5 py-1.5 text-left transition-all",
+          "hover:bg-muted/40 active:scale-[0.99]",
           isStreaming ? "text-foreground/90" : "text-muted-foreground hover:text-foreground",
         )}
         aria-expanded={expanded}
       >
-        <div className="relative flex h-4 w-4 shrink-0 items-center justify-center">
-          {isStreaming && (
-            <div className="absolute inset-0 animate-pulse rounded-full bg-primary/20" />
-          )}
+        <div className="flex w-full items-center gap-2.5">
           <SparkleIcon
-            spinning={isStreaming}
-            className={cn(
-              "relative z-10",
-              isStreaming ? "text-primary" : "text-muted-foreground/50",
-            )}
+            spinning={false}
+            className={cn("shrink-0", isStreaming ? "text-primary" : "text-muted-foreground/50")}
           />
-        </div>
 
-        <span className="flex-1 truncate tracking-tight">{headerLabel}</span>
-
-        {seconds !== null && (
-          <span className="shrink-0 font-mono text-[9px] text-muted-foreground/40 tabular-nums uppercase tracking-widest">
-            {seconds}s
+          <span
+            className={cn(
+              "flex-1 truncate tracking-tight",
+              isStreaming && "ais-reasoning-label--active",
+            )}
+          >
+            {headerLabel}
           </span>
-        )}
 
-        <div
-          className={cn(
-            "flex h-4 w-4 items-center justify-center rounded-full transition-colors",
-            expanded ? "bg-muted-foreground/10" : "group-hover:bg-muted-foreground/5",
-          )}
-        >
-          {expanded ? (
-            <ChevronUp className="h-3 w-3 shrink-0 text-muted-foreground/50" aria-hidden />
-          ) : (
-            <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground/50" aria-hidden />
+          {seconds !== null && (
+            <span className="shrink-0 font-mono text-[9px] text-muted-foreground/40 tabular-nums uppercase tracking-widest">
+              {seconds}s
+            </span>
           )}
         </div>
+
+        {isStreaming && <div className="ais-reasoning-sweep" aria-hidden />}
       </button>
 
       {/* Expanded content */}

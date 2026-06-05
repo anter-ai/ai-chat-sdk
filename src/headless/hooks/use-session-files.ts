@@ -12,6 +12,21 @@ export interface UseSessionFilesReturn {
   closePanel: () => void;
   refresh: () => Promise<void>;
   deleteFile: (fileId: string) => Promise<void>;
+  downloadFile: (file: ChatSessionFileRef) => Promise<void>;
+}
+
+/** Save a blob to disk via a transient anchor (browser only). */
+function saveBlob(blob: Blob, fileName: string): void {
+  if (typeof document === "undefined") return;
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.rel = "noopener";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 export function useSessionFiles(): UseSessionFilesReturn {
@@ -56,6 +71,31 @@ export function useSessionFiles(): UseSessionFilesReturn {
     [adapter, sessionId, refresh],
   );
 
+  const downloadFile = useCallback(
+    async (file: ChatSessionFileRef) => {
+      // Preferred: pull the bytes through the host backend (auth handled by the
+      // adapter) and save them — no direct/presigned URL ever reaches the browser.
+      if (sessionId && adapter.downloadFile) {
+        try {
+          const blob = await adapter.downloadFile(sessionId, file.id);
+          saveBlob(blob, file.fileName);
+          return;
+        } catch (err) {
+          // Do NOT silently fall back to a (possibly presigned) URL on failure —
+          // that would defeat the purpose. Surface and stop.
+          console.error("downloadFile failed", err);
+          return;
+        }
+      }
+      // Legacy fallback for hosts that have not implemented `downloadFile`: open the
+      // host-provided URL in a new tab (cross-origin links ignore `download`).
+      if (file.downloadUrl && typeof window !== "undefined") {
+        window.open(file.downloadUrl, "_blank", "noopener,noreferrer");
+      }
+    },
+    [adapter, sessionId],
+  );
+
   return {
     files,
     isLoading,
@@ -64,5 +104,6 @@ export function useSessionFiles(): UseSessionFilesReturn {
     closePanel,
     refresh,
     deleteFile,
+    downloadFile,
   };
 }

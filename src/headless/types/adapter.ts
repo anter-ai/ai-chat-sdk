@@ -37,6 +37,13 @@ export interface ChatSessionFileRef {
   mimeType: string;
   size: number;
   status: "uploaded" | "processed" | "error";
+  /**
+   * Legacy direct download URL (e.g. a presigned link). A direct URL is a bearer
+   * link — anyone with it can open the file outside the authenticated app for its
+   * lifetime. Prefer implementing {@link ChatAdapter.downloadFile} and leaving this
+   * empty (`""`); the UI uses the adapter method when available and only falls back
+   * to this URL otherwise.
+   */
   downloadUrl: string;
   createdAt?: string;
 }
@@ -60,4 +67,11 @@ export interface ChatAdapter {
   ): Promise<ChatSessionFileRef>;
   listSessionFiles?(sessionId: string): Promise<ChatSessionFileRef[]>;
   deleteSessionFile?(sessionId: string, fileId: string): Promise<void>;
+  /**
+   * Fetch the raw bytes of a session file through the host backend, authenticated
+   * however the host authenticates. When implemented, the UI uses this instead of
+   * {@link ChatSessionFileRef.downloadUrl}, so the host never has to hand the browser
+   * a directly fetchable/presigned URL. Returns the file as a `Blob`.
+   */
+  downloadFile?(sessionId: string, fileId: string): Promise<Blob>;
 }

@@ -17,7 +17,15 @@ function StatusBadge({ status }: { status: ChatSessionFileRef["status"] }) {
   return <span className={`ais-fp-file-badge ais-fp-file-badge--${status}`}>{label}</span>;
 }
 
-function FileRow({ file, onDelete }: { file: ChatSessionFileRef; onDelete: (id: string) => void }) {
+function FileRow({
+  file,
+  onDelete,
+  onDownload,
+}: {
+  file: ChatSessionFileRef;
+  onDelete: (id: string) => void;
+  onDownload: (file: ChatSessionFileRef) => void;
+}) {
   return (
     <div className="ais-fp-file-row">
       <span className="ais-fp-file-icon" aria-hidden="true">
@@ -33,17 +41,15 @@ function FileRow({ file, onDelete }: { file: ChatSessionFileRef; onDelete: (id: 
         </div>
       </div>
       <div className="ais-fp-file-actions">
-        <a
+        <button
           className="ais-fp-file-action-btn"
-          download={file.fileName}
-          href={file.downloadUrl}
-          target="_blank"
-          rel="noopener noreferrer"
+          onClick={() => onDownload(file)}
+          type="button"
           title="Download"
           aria-label={`Download ${file.fileName}`}
         >
           <Download size={14} />
-        </a>
+        </button>
         <button
           className="ais-fp-file-action-btn ais-fp-file-action-btn--danger"
           onClick={() => onDelete(file.id)}
@@ -59,7 +65,7 @@ function FileRow({ file, onDelete }: { file: ChatSessionFileRef; onDelete: (id: 
 }
 
 export function FilesPanel({ filesCtx, className }: FilesPanelProps) {
-  const { files, isLoading, panelOpen, closePanel, deleteFile } = filesCtx;
+  const { files, isLoading, panelOpen, closePanel, deleteFile, downloadFile } = filesCtx;
 
   useEffect(() => {
     if (!panelOpen) return;
@@ -111,7 +117,7 @@ export function FilesPanel({ filesCtx, className }: FilesPanelProps) {
         ) : (
           <div className="ais-fp-file-list">
             {files.map((f) => (
-              <FileRow key={f.id} file={f} onDelete={deleteFile} />
+              <FileRow key={f.id} file={f} onDelete={deleteFile} onDownload={downloadFile} />
             ))}
           </div>
         )}

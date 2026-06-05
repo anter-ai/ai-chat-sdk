@@ -646,21 +646,23 @@ interface ChatAdapter {
   ): Promise<ChatSessionFileRef>;
   listSessionFiles?(sessionId: string): Promise<ChatSessionFileRef[]>;
   deleteSessionFile?(sessionId: string, fileId: string): Promise<void>;
+  downloadFile?(sessionId: string, fileId: string): Promise<Blob>;
 }
 ```
 
 **Method details:**
 
-| Method              | Notes                                                                                                                             |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `createSession`     | Return a session ID string. Creating the session in the backend is optional — the ID just needs to be stable for subsequent calls |
-| `loadSession`       | Return the full `SessionWithMessages` shape including all messages and any artifacts                                              |
-| `listSessions`      | Return a paginated `SessionList`. The SDK passes `{ page: 1, limit: 50 }` by default                                              |
-| `sendMessage`       | Must return a `ReadableStream<Uint8Array>` of SSE text. See [SSE Streaming Protocol](#sse-streaming-protocol)                     |
-| `loadSlashCommands` | Called once on `ChatStateProvider` mount. Use it to fetch and register slash commands                                             |
-| `uploadFile`        | Required when `enableFileUpload: true`. File upload is disabled at the UI level if this method is absent                          |
-| `listSessionFiles`  | Called when the files panel opens or the session changes                                                                          |
-| `deleteSessionFile` | Called when the user removes a file from the session                                                                              |
+| Method              | Notes                                                                                                                                                                                                                                                             |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createSession`     | Return a session ID string. Creating the session in the backend is optional — the ID just needs to be stable for subsequent calls                                                                                                                                 |
+| `loadSession`       | Return the full `SessionWithMessages` shape including all messages and any artifacts                                                                                                                                                                              |
+| `listSessions`      | Return a paginated `SessionList`. The SDK passes `{ page: 1, limit: 50 }` by default                                                                                                                                                                              |
+| `sendMessage`       | Must return a `ReadableStream<Uint8Array>` of SSE text. See [SSE Streaming Protocol](#sse-streaming-protocol)                                                                                                                                                     |
+| `loadSlashCommands` | Called once on `ChatStateProvider` mount. Use it to fetch and register slash commands                                                                                                                                                                             |
+| `uploadFile`        | Required when `enableFileUpload: true`. File upload is disabled at the UI level if this method is absent                                                                                                                                                          |
+| `listSessionFiles`  | Called when the files panel opens or the session changes                                                                                                                                                                                                          |
+| `deleteSessionFile` | Called when the user removes a file from the session                                                                                                                                                                                                              |
+| `downloadFile`      | Preferred over `ChatSessionFileRef.downloadUrl`. When implemented, the files panel fetches bytes through it (your backend handles auth) and saves a `Blob`, so no direct/presigned URL is exposed to the browser. Falls back to opening `downloadUrl` when absent |
 
 **`SessionConfig` shape:**
 
@@ -1311,6 +1313,7 @@ interface UseSessionFilesReturn {
   closePanel: () => void;
   refresh: () => Promise<void>;
   deleteFile: (fileId: string) => Promise<void>;
+  downloadFile: (file: ChatSessionFileRef) => Promise<void>;
 }
 ```
 

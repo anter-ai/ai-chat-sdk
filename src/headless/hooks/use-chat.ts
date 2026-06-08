@@ -124,6 +124,7 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
     activeContextId,
     setActiveContext,
     persistentContextVariables,
+    onSlashCommand,
   } = useChatContext();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [streamingState, setStreamingState] = useState<StreamingState>({
@@ -143,6 +144,8 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
   activeContextIdRef.current = activeContextId;
   const persistentContextVariablesRef = useRef(persistentContextVariables);
   persistentContextVariablesRef.current = persistentContextVariables;
+  const onSlashCommandRef = useRef(onSlashCommand);
+  onSlashCommandRef.current = onSlashCommand;
 
   const clearMessages = useCallback(() => {
     abortControllerRef.current?.abort();
@@ -184,32 +187,57 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
       abortControllerRef.current?.abort();
       const controller = new AbortController();
       abortControllerRef.current = controller;
-      const slashMatch = trimmed.match(/^(\/\w+)/);
-      const matchedCommand = slashMatch
-        ? getSlashCommandRegistry().find((c) => c.name === slashMatch[1])
+      const slashMatch = trimmed.match(/^(\/\w+)\s*([\s\S]*)$/);
+      const commandName = slashMatch?.[1];
+      const commandArgs = (slashMatch?.[2] ?? "").trim();
+      const matchedCommand = commandName
+        ? getSlashCommandRegistry().find((c) => c.name === commandName)
         : undefined;
 
-      if (matchedCommand?.slashCommandId === "help") {
-        const commands = getSlashCommandRegistry();
-        const helpContent = `### Available Commands\n\n| Command | Description | Example |\n| :--- | :--- | :--- |\n${commands
-          .map((c) => `| **${c.name}** | ${c.description} | \`${c.exampleUsage || ""}\` |`)
-          .join("\n")}\n\nType \`/\` in the chat box to see the command menu.`;
-
-        const commandMessage: ChatMessage = {
-          id: generateMessageId(),
-          content: "/help",
-          role: "command",
-          timestamp: new Date(),
+      // Client-side slash command handling. A host-provided interceptor runs first
+      // and, by returning true, can fully handle a command (e.g. UI/local-storage
+      // only commands) so it never reaches the backend. The built-in `/help` command
+      // is the SDK's default handler when the host does not claim the command.
+      if (commandName) {
+        const appendedMessages: string[] = [];
+        const slashCtx = {
+          appendAssistantMessage: (markdown: string) => {
+            appendedMessages.push(markdown);
+          },
         };
 
-        const helpAssistantMessage: ChatMessage = {
-          ...createAssistantMessage(),
-          content: helpContent,
-          isStreaming: false,
-        };
+        let handled = false;
 
-        setMessages((prev) => [...prev, commandMessage, helpAssistantMessage]);
-        return;
+        if (onSlashCommandRef.current) {
+          handled = (await onSlashCommandRef.current(commandName, commandArgs, slashCtx)) === true;
+        }
+
+        if (!handled && matchedCommand?.slashCommandId === "help") {
+          const commands = getSlashCommandRegistry();
+          const helpContent = `### Available Commands\n\n| Command | Description | Example |\n| :--- | :--- | :--- |\n${commands
+            .map((c) => `| **${c.name}** | ${c.description} | \`${c.exampleUsage || ""}\` |`)
+            .join("\n")}\n\nType \`/\` in the chat box to see the command menu.`;
+          appendedMessages.push(helpContent);
+          handled = true;
+        }
+
+        if (handled) {
+          const commandMessage: ChatMessage = {
+            id: generateMessageId(),
+            content: trimmed,
+            role: "command",
+            timestamp: new Date(),
+          };
+
+          const assistantMessages: ChatMessage[] = appendedMessages.map((content) => ({
+            ...createAssistantMessage(),
+            content,
+            isStreaming: false,
+          }));
+
+          setMessages((prev) => [...prev, commandMessage, ...assistantMessages]);
+          return;
+        }
       }
 
       const userMessage = createUserMessage(trimmed);

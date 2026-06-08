@@ -2,7 +2,13 @@
 
 import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 import type { ChatAdapter } from "../types/adapter";
-import type { ChatConfig, ChatStrings, ChatTheme, ChatThemeSpecification } from "../types/config";
+import type {
+  ChatConfig,
+  ChatStrings,
+  ChatTheme,
+  ChatThemeSpecification,
+  SlashCommandHandler,
+} from "../types/config";
 import type { ChatPlugins } from "../types/plugins";
 import type { Session } from "../types/session";
 import type { ComposerAnnouncement } from "../types/chat";
@@ -14,6 +20,7 @@ interface ChatContextValue {
   config: Required<ChatConfig>;
   strings: ChatStrings;
   plugins: ChatPlugins;
+  onSlashCommand?: SlashCommandHandler;
   currentSession?: Session;
   setCurrentSession: (session?: Session) => void;
   orgLabel?: string;
@@ -90,6 +97,7 @@ interface ChatProviderProps {
   config?: ChatConfig;
   strings?: Partial<ChatStrings>;
   plugins?: ChatPlugins;
+  onSlashCommand?: SlashCommandHandler;
   "data-chat-provider"?: string;
 }
 
@@ -100,6 +108,7 @@ export function ChatProvider({
   config = {},
   strings = {},
   plugins = {},
+  onSlashCommand,
 }: ChatProviderProps) {
   const [currentSession, setCurrentSession] = useState<Session | undefined>(undefined);
   const [orgLabel, setOrgLabel] = useState<string | undefined>(undefined);
@@ -146,6 +155,7 @@ export function ChatProvider({
       config: mergedConfig,
       strings: mergedStrings,
       plugins,
+      onSlashCommand,
       currentSession,
       setCurrentSession,
       orgLabel,
@@ -164,6 +174,7 @@ export function ChatProvider({
       mergedConfig,
       mergedStrings,
       plugins,
+      onSlashCommand,
       currentSession,
       orgLabel,
       activeContextId,

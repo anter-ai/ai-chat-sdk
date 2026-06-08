@@ -35,6 +35,33 @@ export interface ChatConfig {
   themeOptions?: ChatThemeSpecification;
 }
 
+/**
+ * Context handed to a slash-command interceptor so the host can surface output
+ * back into the chat transcript without performing a backend round-trip.
+ */
+export interface SlashCommandContext {
+  /** Appends an assistant-role markdown message to the transcript. */
+  appendAssistantMessage(markdown: string): void;
+}
+
+/**
+ * Host-provided interceptor for slash commands. Invoked before any backend send
+ * whenever the composer submits a message beginning with `/<word>`.
+ *
+ * - `name` is the matched command (e.g. `"/agent"`).
+ * - `args` is the trimmed remainder after the command (e.g. `"set my-agent"`).
+ * - Return `true` (or a promise resolving to `true`) to mark the command handled,
+ *   which renders the typed command plus any appended messages and skips the
+ *   backend `sendMessage` call entirely.
+ * - Return `false`/`undefined` to let the SDK fall through to its built-in
+ *   handling (e.g. `/help`) or the normal backend send.
+ */
+export type SlashCommandHandler = (
+  name: string,
+  args: string,
+  ctx: SlashCommandContext,
+) => boolean | void | Promise<boolean | void>;
+
 export const defaultStrings = {
   newConversation: "New conversation",
   sendMessage: "Send message",

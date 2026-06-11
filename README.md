@@ -351,29 +351,29 @@ The root context provider. Must wrap all other SDK components.
 
 **`strings` overrides** — all keys optional, defaults shown:
 
-| Key                   | Default                                |
-| --------------------- | -------------------------------------- |
-| `composerPlaceholder` | `"Ask a question..."`                  |
-| `footerDisclaimer`    | `"AI responses can contain mistakes."` |
-| `newConversation`     | `"New conversation"`                   |
-| `sendMessage`         | `"Send message"`                       |
-| `retry`               | `"Retry"`                              |
-| `thinking`            | `"Thinking..."`                        |
-| `exportArtifact`      | `"Save to workspace"`                  |
-| `exportArtifactSub`   | `"Attach to your workspace"`           |
-| `openFullChat`        | `"Open full chat"`                     |
-| `cancel`              | `"Cancel"`                             |
-| `artifactPanelClose`  | `"Close artifact panel"`               |
-| `approvalTitle`       | `"Approval required"`                  |
-| `approvalApprove`     | `"Approve"`                            |
-| `approvalDeny`        | `"Deny"`                               |
-| `approvalConfirmDeny` | `"Confirm deny"`                       |
-| `approvalDenyReasonPlaceholder` | `"Optional reason — sent to the agent"` |
-| `approvalWaiting`     | `"Waiting for approval through another channel…"` |
-| `approvalApproved`    | `"Approved"`                           |
-| `approvalDenied`      | `"Denied"`                             |
-| `approvalExpired`     | `"Expired"`                            |
-| `approvalCanceled`    | `"Canceled"`                           |
+| Key                             | Default                                           |
+| ------------------------------- | ------------------------------------------------- |
+| `composerPlaceholder`           | `"Ask a question..."`                             |
+| `footerDisclaimer`              | `"AI responses can contain mistakes."`            |
+| `newConversation`               | `"New conversation"`                              |
+| `sendMessage`                   | `"Send message"`                                  |
+| `retry`                         | `"Retry"`                                         |
+| `thinking`                      | `"Thinking..."`                                   |
+| `exportArtifact`                | `"Save to workspace"`                             |
+| `exportArtifactSub`             | `"Attach to your workspace"`                      |
+| `openFullChat`                  | `"Open full chat"`                                |
+| `cancel`                        | `"Cancel"`                                        |
+| `artifactPanelClose`            | `"Close artifact panel"`                          |
+| `approvalTitle`                 | `"Approval required"`                             |
+| `approvalApprove`               | `"Approve"`                                       |
+| `approvalDeny`                  | `"Deny"`                                          |
+| `approvalConfirmDeny`           | `"Confirm deny"`                                  |
+| `approvalDenyReasonPlaceholder` | `"Optional reason — sent to the agent"`           |
+| `approvalWaiting`               | `"Waiting for approval through another channel…"` |
+| `approvalApproved`              | `"Approved"`                                      |
+| `approvalDenied`                | `"Denied"`                                        |
+| `approvalExpired`               | `"Expired"`                                       |
+| `approvalCanceled`              | `"Canceled"`                                      |
 
 ---
 
@@ -443,6 +443,11 @@ interface ComposerAnnouncement {
   type: "info" | "warning" | "success" | "announcement";
   title: string;
   icon?: string; // Optional emoji or short icon label
+  action?: {
+    label: string;
+    onClick: () => void;
+  }; // Optional CTA button
+  position?: "top" | "bottom"; // Defaults to "bottom"
   dismissible?: boolean; // Adds a dismiss button to the banner
   onDismiss?: () => void; // Called when the user dismisses the banner
 }
@@ -663,17 +668,17 @@ interface ChatAdapter {
 
 **Method details:**
 
-| Method              | Notes                                                                                                                                                                                                                                                             |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createSession`     | Return a session ID string. Creating the session in the backend is optional — the ID just needs to be stable for subsequent calls                                                                                                                                 |
-| `loadSession`       | Return the full `SessionWithMessages` shape including all messages and any artifacts                                                                                                                                                                              |
-| `listSessions`      | Return a paginated `SessionList`. The SDK passes `{ page: 1, limit: 50 }` by default                                                                                                                                                                              |
-| `sendMessage`       | Must return a `ReadableStream<Uint8Array>` of SSE text. See [SSE Streaming Protocol](#sse-streaming-protocol)                                                                                                                                                     |
-| `loadSlashCommands` | Called once on `ChatStateProvider` mount. Use it to fetch and register slash commands                                                                                                                                                                             |
-| `uploadFile`        | Required when `enableFileUpload: true`. File upload is disabled at the UI level if this method is absent                                                                                                                                                          |
-| `listSessionFiles`  | Called when the files panel opens or the session changes                                                                                                                                                                                                          |
-| `deleteSessionFile` | Called when the user removes a file from the session                                                                                                                                                                                                              |
-| `downloadFile`      | Preferred over `ChatSessionFileRef.downloadUrl`. When implemented, the files panel fetches bytes through it (your backend handles auth) and saves a `Blob`, so no direct/presigned URL is exposed to the browser. Falls back to opening `downloadUrl` when absent |
+| Method                | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createSession`       | Return a session ID string. Creating the session in the backend is optional — the ID just needs to be stable for subsequent calls                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `loadSession`         | Return the full `SessionWithMessages` shape including all messages and any artifacts                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `listSessions`        | Return a paginated `SessionList`. The SDK passes `{ page: 1, limit: 50 }` by default                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `sendMessage`         | Must return a `ReadableStream<Uint8Array>` of SSE text. See [SSE Streaming Protocol](#sse-streaming-protocol)                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `loadSlashCommands`   | Called once on `ChatStateProvider` mount. Use it to fetch and register slash commands                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `uploadFile`          | Required when `enableFileUpload: true`. File upload is disabled at the UI level if this method is absent                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `listSessionFiles`    | Called when the files panel opens or the session changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `deleteSessionFile`   | Called when the user removes a file from the session                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `downloadFile`        | Preferred over `ChatSessionFileRef.downloadUrl`. When implemented, the files panel fetches bytes through it (your backend handles auth) and saves a `Blob`, so no direct/presigned URL is exposed to the browser. Falls back to opening `downloadUrl` when absent                                                                                                                                                                                                                                                                      |
 | `resolveToolApproval` | Resolves a human-in-the-loop tool approval surfaced by a `tool_approval_request` stream event (the run is paused server-side until resolved). When implemented, approval cards render Approve/Deny actions; when absent, cards are passive ("waiting for approval") and resolution must come from another channel via `tool_approval_resolved`. `ResolveToolApprovalInput` carries `{ sessionId, approval, decision: "approved" \| "denied", reason? }`; the `approval` includes backend routing context (`executionId`, `toolCallId`) |
 
 **`SessionConfig` shape:**
@@ -743,18 +748,18 @@ data: [DONE]
 
 ### Supported event types
 
-| Event              | Expected payload                                                                                  | Description                                                                                                                                          |
-| ------------------ | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `content`          | `{ content: string }` or `{ payload: { text: string } }`                                          | A streamed text chunk — appended to the current message                                                                                              |
-| `done`             | `{ isComplete: true, artifactIds?: string[], suggestions?: string[], sources?: MessageSource[] }` | Stream complete — triggers post-processing (citations, record tags, suggestions)                                                                     |
-| `error`            | `{ error: string }`                                                                               | Fatal error — shown in the message bubble with a Retry button                                                                                        |
-| `artifact`         | `{ payload: Artifact }`                                                                           | A server-generated artifact to store and show in the artifact panel                                                                                  |
-| `step`             | `{ step: AgentStepEvent }`                                                                        | An agent reasoning or tool step (rendered in the collapsible step timeline above the message)                                                        |
-| `plan`             | `{ plan: { phases: AgentPlanPhase[] } }`                                                          | Agent plan phases displayed above the message while streaming                                                                                        |
-| `context_required` | `{ payload: { contextKey, questionIntro, choices[] } }`                                           | Pauses the conversation and renders interactive choice chips (see [Context variables and context_required](#context-variables-and-context_required)) |
-| `context_resolved` | `{ payload: { key: "contextId", value: string } }`                                                | Server resolved a required context value — updates `activeContextId` in the provider                                                                 |
-| `tool_approval_request` | `{ payload: { approvalId, toolCallId, toolName, args?, riskCategory?, expiresAt?, executionId? } }` | A HITL tool approval — the run is paused server-side. Renders an interactive approval card on the streaming message (actionable when the adapter implements `resolveToolApproval`) |
-| `tool_approval_resolved` | `{ payload: { approvalId, decision: "approved" \| "denied" \| "timeout" \| "canceled", reason? } }` | Resolves the approval card (from any channel); a deny `reason` is displayed on the card. `timeout` renders as expired |
+| Event                    | Expected payload                                                                                    | Description                                                                                                                                                                        |
+| ------------------------ | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `content`                | `{ content: string }` or `{ payload: { text: string } }`                                            | A streamed text chunk — appended to the current message                                                                                                                            |
+| `done`                   | `{ isComplete: true, artifactIds?: string[], suggestions?: string[], sources?: MessageSource[] }`   | Stream complete — triggers post-processing (citations, record tags, suggestions)                                                                                                   |
+| `error`                  | `{ error: string }`                                                                                 | Fatal error — shown in the message bubble with a Retry button                                                                                                                      |
+| `artifact`               | `{ payload: Artifact }`                                                                             | A server-generated artifact to store and show in the artifact panel                                                                                                                |
+| `step`                   | `{ step: AgentStepEvent }`                                                                          | An agent reasoning or tool step (rendered in the collapsible step timeline above the message)                                                                                      |
+| `plan`                   | `{ plan: { phases: AgentPlanPhase[] } }`                                                            | Agent plan phases displayed above the message while streaming                                                                                                                      |
+| `context_required`       | `{ payload: { contextKey, questionIntro, choices[] } }`                                             | Pauses the conversation and renders interactive choice chips (see [Context variables and context_required](#context-variables-and-context_required))                               |
+| `context_resolved`       | `{ payload: { key: "contextId", value: string } }`                                                  | Server resolved a required context value — updates `activeContextId` in the provider                                                                                               |
+| `tool_approval_request`  | `{ payload: { approvalId, toolCallId, toolName, args?, riskCategory?, expiresAt?, executionId? } }` | A HITL tool approval — the run is paused server-side. Renders an interactive approval card on the streaming message (actionable when the adapter implements `resolveToolApproval`) |
+| `tool_approval_resolved` | `{ payload: { approvalId, decision: "approved" \| "denied" \| "timeout" \| "canceled", reason? } }` | Resolves the approval card (from any channel); a deny `reason` is displayed on the card. `timeout` renders as expired                                                              |
 
 ### Minimal streaming server example (Node.js / Bun)
 
@@ -994,9 +999,11 @@ import type { ChatPlugins } from "@anter/ai-chat-sdk";
 
 ### Available slots
 
-| Slot              | Location                                | Description                                       |
-| ----------------- | --------------------------------------- | ------------------------------------------------- |
-| `composerActions` | Composer footer, after the Tools button | Additional action buttons in the composer toolbar |
+| Slot                   | Location                                | Description                                       |
+| ---------------------- | --------------------------------------- | ------------------------------------------------- |
+| `composerActions`      | Composer footer, after the Tools button | Additional action buttons in the composer toolbar |
+| `composerTopBanner`    | Above composer input                    | Host-controlled banner slot rendered above input  |
+| `composerBottomBanner` | Below composer input                    | Host-controlled banner slot rendered below input  |
 
 ### Injecting a composer action
 
@@ -1012,6 +1019,13 @@ function MyApp() {
       organizationId={organizationId}
       plugins={{
         composerActions: <MyExtensionsButton />,
+        composerTopBanner: {
+          id: "notify-response",
+          type: "announcement",
+          title: "Want to be notified when the AI responds?",
+          action: { label: "Notify", onClick: openNotificationPrompt },
+          dismissible: true,
+        },
       }}
     >
       <ChatShell />
@@ -1361,7 +1375,13 @@ Direct access to the provider's shared state.
   activeContextId?: string;
   activeContextLabel?: string;
   setActiveContext: (id: string | undefined, label?: string) => void;
+  topBanner: ComposerAnnouncement | null;
+  setTopBanner: (a: ComposerAnnouncement | null) => void;
+  bottomBanner: ComposerAnnouncement | null;
+  setBottomBanner: (a: ComposerAnnouncement | null) => void;
+  // Backward-compatible alias to bottomBanner
   announcement: ComposerAnnouncement | null;
+  // Backward-compatible alias to setBottomBanner
   setAnnouncement: (a: ComposerAnnouncement | null) => void;
   persistentContextVariables: Record<string, string>;
   setPersistentContextVariable: (key: string, value: string | undefined) => void;

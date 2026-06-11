@@ -206,13 +206,7 @@ export function ChatComposer({ onSendMessage, isStreaming, className }: ChatComp
         <ComposerBanner banner={topBanner} position="top" onDismiss={() => setTopBanner(null)} />
       )}
 
-      <div
-        className={cn(
-          "ais-composer-container",
-          topBanner && "has-top-banner",
-          bottomBanner && "has-bottom-banner",
-        )}
-      >
+      <div className="ais-composer-container">
         {enableFileUpload && pendingFiles.length > 0 && (
           <AttachmentChipBar files={pendingFiles} onRemove={handleRemovePendingFile} />
         )}

@@ -74,6 +74,16 @@ export const defaultStrings = {
   footerDisclaimer: "AI responses can contain mistakes.",
   exportArtifact: "Save to workspace",
   exportArtifactSub: "Attach to your workspace",
+  approvalTitle: "Approval required",
+  approvalApprove: "Approve",
+  approvalDeny: "Deny",
+  approvalConfirmDeny: "Confirm deny",
+  approvalDenyReasonPlaceholder: "Optional reason — sent to the agent",
+  approvalWaiting: "Waiting for approval through another channel…",
+  approvalApproved: "Approved",
+  approvalDenied: "Denied",
+  approvalExpired: "Expired",
+  approvalCanceled: "Canceled",
 } as const;
 
 export type ChatStrings = typeof defaultStrings;

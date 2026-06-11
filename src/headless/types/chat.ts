@@ -52,6 +52,35 @@ export interface ContextRequiredPayload {
   choices: ContextRequiredChoice[];
 }
 
+export type ToolApprovalStatus = "pending" | "approved" | "denied" | "expired" | "canceled";
+
+/**
+ * A human-in-the-loop tool approval surfaced by the backend during a streamed
+ * run (`tool_approval_request` / `tool_approval_resolved` stream events). The
+ * run is paused server-side until the approval is resolved — either through
+ * {@link ChatAdapter.resolveToolApproval} or an external channel (in which case
+ * the resolution still arrives via the `tool_approval_resolved` event).
+ */
+export interface ToolApproval {
+  approvalId: string;
+  toolCallId: string;
+  toolName: string;
+  args?: unknown;
+  /**
+   * Backend-defined risk label (e.g. "read_only", "destructive"). Opaque to the
+   * SDK — rendered humanized but uninterpreted.
+   */
+  riskCategory?: string;
+  expiresAt?: string;
+  status: ToolApprovalStatus;
+  /** Deny reason — shown on resolved cards and sent back to the agent. */
+  reason?: string | null;
+  /** Backend routing context passed through to the adapter when resolving. */
+  executionId?: string;
+  /** Local resolution failure (adapter rejection); the card stays actionable. */
+  error?: string;
+}
+
 export interface ChatMessage {
   id: string;
   content: string;
@@ -69,6 +98,8 @@ export interface ChatMessage {
   records?: RecordTag[];
   /** Set on context_required turns — renders as interactive choice chips in the UI. */
   contextRequired?: ContextRequiredPayload;
+  /** Pending/resolved HITL tool approvals — render as interactive approval cards. */
+  toolApprovals?: ToolApproval[];
 }
 
 export interface StreamingState {

@@ -1,3 +1,4 @@
+import type { ToolApproval } from "./chat";
 import type { Session, SessionWithMessages } from "./session";
 
 export interface SessionConfig {
@@ -52,6 +53,15 @@ export interface UploadFileOptions {
   parseAsQuestionnaire?: boolean;
 }
 
+export interface ResolveToolApprovalInput {
+  sessionId: string;
+  /** The approval being resolved — carries the backend routing context (executionId, toolCallId). */
+  approval: ToolApproval;
+  decision: "approved" | "denied";
+  /** Optional deny reason, fed back to the agent as part of the tool result. */
+  reason?: string;
+}
+
 export interface ChatAdapter {
   createSession(config: SessionConfig): Promise<string>;
   loadSession(sessionId: string): Promise<SessionWithMessages>;
@@ -74,4 +84,12 @@ export interface ChatAdapter {
    * a directly fetchable/presigned URL. Returns the file as a `Blob`.
    */
   downloadFile?(sessionId: string, fileId: string): Promise<Blob>;
+  /**
+   * Resolve a pending HITL tool approval (`tool_approval_request` stream event)
+   * against the host backend. When implemented, approval cards render
+   * Approve/Deny actions; when absent, the cards are passive ("waiting for
+   * approval") and resolution must happen through another channel. Rejections
+   * are surfaced on the card and the approval stays actionable.
+   */
+  resolveToolApproval?(input: ResolveToolApprovalInput): Promise<void>;
 }

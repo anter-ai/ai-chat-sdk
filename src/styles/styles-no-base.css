@@ -168,13 +168,36 @@
 
 .ais-chat-shell {
   --ais-shell-header-height: 44px;
+  /* Viewport height unit. Upgraded to 100dvh below where supported; the JS
+     fallback (no dvh support) overrides it inline with the measured
+     visualViewport height so mobile browser chrome is always accounted for. */
+  --ais-viewport-height: 100vh;
+  /* Pixels of host-app chrome (header/footer) above/below the shell. Set via
+     the ChatShell `viewportOffset` prop, or directly by the host in CSS. */
+  --ais-chrome-offset-top: 0px;
+  --ais-chrome-offset-bottom: 0px;
+  --ais-available-height: calc(
+    var(--ais-viewport-height) - var(--ais-chrome-offset-top) - var(--ais-chrome-offset-bottom)
+  );
   display: flex;
-  height: 100vh;
-  min-height: 100vh;
+  /* Default: fill the visible viewport minus declared host chrome. Hosts with
+     a properly bounded parent override this with an inline height (e.g.
+     style={{ height: "100%" }}); max-height still guards against any parent
+     that is taller than the visible viewport, so the sticky composer can never
+     be pushed below the fold. */
+  height: var(--ais-available-height);
+  min-height: 0;
+  max-height: var(--ais-available-height);
   background: var(--chat-bg);
   color: var(--message-ai-text);
   position: relative;
   overflow: hidden;
+}
+
+@supports (height: 100dvh) {
+  .ais-chat-shell {
+    --ais-viewport-height: 100dvh;
+  }
 }
 
 .ais-chat-content {
@@ -2295,8 +2318,8 @@
   /* Floating card style - Spacing refined */
   margin: 0 24px;
   width: min(480px, calc(100% - 44px));
-  height: calc(100vh - var(--ais-shell-header-height) - 44px);
-  max-height: calc(100vh - var(--ais-shell-header-height) - 44px);
+  height: calc(var(--ais-available-height, 100vh) - var(--ais-shell-header-height) - 44px);
+  max-height: calc(var(--ais-available-height, 100vh) - var(--ais-shell-header-height) - 44px);
 
   background: var(--ais-sp-bg);
   display: flex;
@@ -2526,8 +2549,8 @@
   /* Floating card style - aligned exactly to sources-panel */
   margin: 0 24px;
   width: min(480px, calc(100% - 44px));
-  height: calc(100vh - var(--ais-shell-header-height) - 44px);
-  max-height: calc(100vh - var(--ais-shell-header-height) - 44px);
+  height: calc(var(--ais-available-height, 100vh) - var(--ais-shell-header-height) - 44px);
+  max-height: calc(var(--ais-available-height, 100vh) - var(--ais-shell-header-height) - 44px);
   border-radius: 28px;
 }
 
@@ -2821,6 +2844,164 @@
   background: color-mix(in oklab, var(--chat-accent) 8%, transparent);
   border-color: var(--chat-accent);
   color: var(--chat-accent);
+}
+
+/* ─── Tool Approval Card ─────────────────────────────────────── */
+
+.ais-tool-approval-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--chat-border);
+  border-left: 3px solid var(--chat-accent);
+  border-radius: var(--chat-radius-md, 8px);
+  background: color-mix(in oklab, var(--chat-accent) 4%, transparent);
+  font-size: 13px;
+  color: var(--message-ai-text);
+}
+
+.ais-tool-approval--approved {
+  border-left-color: color-mix(in oklab, var(--chat-accent) 60%, transparent);
+  background: transparent;
+  opacity: 0.85;
+}
+
+.ais-tool-approval--denied,
+.ais-tool-approval--expired,
+.ais-tool-approval--canceled {
+  border-left-color: var(--chat-border);
+  background: transparent;
+  opacity: 0.85;
+}
+
+.ais-tool-approval-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ais-tool-approval-status {
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ais-tool-approval-tool {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--message-ai-text) 7%, transparent);
+}
+
+.ais-tool-approval-risk {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--chat-border);
+  color: var(--chat-muted);
+  text-transform: capitalize;
+}
+
+.ais-tool-approval-args {
+  margin: 0;
+  padding: 8px 10px;
+  max-height: 140px;
+  overflow: auto;
+  border-radius: 6px;
+  background: color-mix(in oklab, var(--message-ai-text) 5%, transparent);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ais-tool-approval-reason {
+  margin: 0;
+  font-style: italic;
+  color: var(--chat-muted);
+}
+
+.ais-tool-approval-error {
+  margin: 0;
+  font-size: 12px;
+  color: #ef4444;
+}
+
+.ais-tool-approval-waiting {
+  margin: 0;
+  font-size: 12px;
+  color: var(--chat-muted);
+}
+
+.ais-tool-approval-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ais-tool-approval-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--chat-border);
+  background: transparent;
+  color: var(--message-ai-text);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.ais-tool-approval-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ais-tool-approval-btn--approve {
+  border-color: var(--chat-accent);
+  background: var(--chat-accent);
+  color: var(--chat-accent-foreground, #ffffff);
+}
+
+.ais-tool-approval-btn--approve:not(:disabled):hover {
+  background: color-mix(in oklab, var(--chat-accent) 85%, #000);
+}
+
+.ais-tool-approval-btn--deny:not(:disabled):hover {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.ais-tool-approval-deny-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ais-tool-approval-reason-input {
+  width: 100%;
+  resize: vertical;
+  padding: 8px 10px;
+  border: 1px solid var(--chat-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--message-ai-text);
+  font-family: inherit;
+  font-size: 12.5px;
+}
+
+.ais-tool-approval-reason-input:focus {
+  outline: none;
+  border-color: var(--chat-accent);
 }
 
 /* ─── Context Tag Bar ────────────────────────────────────────── */
@@ -3318,7 +3499,7 @@
   border: 1px solid color-mix(in oklab, var(--chat-border) 56%, transparent);
   border-radius: 18px;
   width: min(640px, calc(100vw - 32px));
-  max-height: min(520px, calc(100vh - 120px));
+  max-height: min(520px, calc(var(--ais-viewport-height, 100vh) - 120px));
   position: fixed;
   top: 15%;
   left: 50%;
@@ -3630,7 +3811,7 @@
     right: 0;
     bottom: 0;
     width: 100vw;
-    height: 100vh;
+    height: var(--ais-viewport-height, 100vh);
     max-height: none;
     transform: none;
     border: none;
@@ -3858,6 +4039,18 @@
   height: min(620px, calc(100vh - 96px));
   min-height: 420px;
   max-height: calc(100vh - 96px);
+}
+
+/* The widget floats outside the shell, so it sizes against the dynamic
+   viewport directly (mobile browser chrome shows/hides during scroll). */
+@supports (height: 100dvh) {
+  .ais-widget-popover {
+    height: min(620px, calc(100dvh - 96px));
+    max-height: calc(100dvh - 96px);
+  }
+}
+
+.ais-widget-popover {
   background: var(--chat-bg);
   border: 1px solid var(--chat-border);
   border-radius: 22px;
@@ -4202,6 +4395,13 @@
     max-height: calc(100vh - 84px);
     height: min(580px, calc(100vh - 84px));
     border-radius: 18px;
+  }
+
+  @supports (height: 100dvh) {
+    .ais-widget-popover {
+      max-height: calc(100dvh - 84px);
+      height: min(580px, calc(100dvh - 84px));
+    }
   }
 
   .ais-widget-subtitle {

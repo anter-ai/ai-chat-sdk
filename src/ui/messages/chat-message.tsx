@@ -6,11 +6,12 @@ import remarkGfm from "remark-gfm";
 import type { UseArtifactsReturn } from "../../headless/hooks/use-artifacts";
 import type { UseSourcesReturn } from "../../headless/hooks/use-sources";
 import { useChatContext } from "../../headless/context/chat-provider";
-import type { ChatMessage as ChatMessageType } from "../../headless/types/chat";
+import type { ChatMessage as ChatMessageType, ToolApproval } from "../../headless/types/chat";
 import { ArtifactChip } from "./artifact-chip";
 import { RecordChip } from "./record-chip";
 import { FollowUpSuggestions } from "./follow-up-suggestions";
 import { ContextRequiredChips } from "./context-required-chips";
+import { ToolApprovalCard } from "./tool-approval-card";
 import { ReasoningBlock } from "./reasoning-block";
 import { extractArtifactsFromContent } from "../../headless/utils/artifact-utils";
 import { extractSuggestionsFromContent } from "../../headless/utils/suggestion-utils";
@@ -76,6 +77,13 @@ interface ChatMessageProps {
   sourcesCtx: UseSourcesReturn;
   onRecordClick?: (record: RecordTag) => void;
   showSuggestions?: boolean;
+  /** True when the adapter implements resolveToolApproval (cards become actionable). */
+  canResolveToolApprovals?: boolean;
+  onResolveToolApproval?: (
+    approval: ToolApproval,
+    decision: "approved" | "denied",
+    reason?: string,
+  ) => void | Promise<void>;
 }
 
 export function ChatMessage({
@@ -86,8 +94,10 @@ export function ChatMessage({
   sourcesCtx,
   onRecordClick,
   showSuggestions,
+  canResolveToolApprovals,
+  onResolveToolApproval,
 }: ChatMessageProps) {
-  const { config } = useChatContext();
+  const { config, strings } = useChatContext();
   const enableArtifacts = config?.enableArtifacts ?? true;
 
   const { cleanedContent, extractedArtifacts } = React.useMemo(() => {
@@ -233,6 +243,19 @@ export function ChatMessage({
             🔗 {message.sources!.length} {message.sources!.length === 1 ? "Source" : "Sources"}
           </button>
         ) : null}
+        {/* Approval cards render DURING streaming — the run is paused server-side
+            until the approval resolves, so this is the only interactive surface. */}
+        {!isUser && message.toolApprovals?.length
+          ? message.toolApprovals.map((approval) => (
+              <ToolApprovalCard
+                key={approval.approvalId}
+                approval={approval}
+                canResolve={Boolean(canResolveToolApprovals && onResolveToolApproval)}
+                onResolve={(a, decision, reason) => onResolveToolApproval?.(a, decision, reason)}
+                strings={strings}
+              />
+            ))
+          : null}
         {!isUser && !message.isStreaming && message.contextRequired ? (
           <ContextRequiredChips contextRequired={message.contextRequired} onSelect={onFollowUp} />
         ) : null}

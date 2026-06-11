@@ -9,6 +9,7 @@ import {
   type UseSessionFilesReturn,
 } from "../../headless/hooks/use-session-files";
 import { useChatContext } from "../../headless/context/chat-provider";
+import { useViewportHeightFallback } from "../../headless/hooks/use-viewport-height";
 import { registerCommand, unregisterCommand } from "../../extensions/command-registry";
 import { ArtifactPanel } from "../artifact-panel/artifact-panel";
 import { SourcesPanel } from "../sources-panel/sources-panel";
@@ -35,6 +36,19 @@ interface ChatShellProps {
   onRecordClick?: (record: RecordTag) => void;
   recordPanel?: React.ReactNode;
   className?: string;
+  /**
+   * Inline styles merged onto the shell root. Hosts that provide a bounded
+   * parent container should pass `{ height: "100%" }` so the shell fills the
+   * parent instead of the viewport (see the height contract in the README).
+   */
+  style?: React.CSSProperties;
+  /**
+   * Pixels of host-app chrome (header and/or footer) rendered outside the
+   * shell. Used to compute the available viewport height on mobile, where the
+   * shell would otherwise overflow below the fold and clip the composer.
+   * Equivalent to setting `--ais-chrome-offset-top/bottom` in CSS.
+   */
+  viewportOffset?: { top?: number; bottom?: number };
   initialSessionId?: string;
   onSessionChange?: (sessionId?: string) => void;
   /** Consumer-supplied empty state rendered when the conversation has no messages. */
@@ -48,6 +62,8 @@ export function ChatShell({
   onRecordClick,
   recordPanel,
   className,
+  style,
+  viewportOffset,
   initialSessionId,
   onSessionChange,
   emptyState,
@@ -68,6 +84,8 @@ export function ChatShell({
         onRecordClick={onRecordClick}
         recordPanel={recordPanel}
         className={className}
+        style={style}
+        viewportOffset={viewportOffset}
         initialSessionId={initialSessionId}
         onSessionChange={onSessionChange}
         emptyState={emptyState}
@@ -89,6 +107,8 @@ function ChatShellContent({
   onRecordClick,
   recordPanel,
   className,
+  style,
+  viewportOffset,
   initialSessionId,
   onSessionChange,
   artifactsCtx,
@@ -258,8 +278,24 @@ function ChatShellContent({
 
   const sessionTitle = currentSessionTitle?.trim() || "New session";
 
+  // Mobile viewport sizing: where `dvh` is unsupported, mirror the visual
+  // viewport height into --ais-viewport-height so the shell never overflows
+  // the visible area when browser chrome shows/hides.
+  const shellRef = React.useRef<HTMLDivElement | null>(null);
+  useViewportHeightFallback(shellRef);
+
+  const shellStyle: React.CSSProperties = {
+    ...(viewportOffset?.top != null
+      ? ({ "--ais-chrome-offset-top": `${viewportOffset.top}px` } as React.CSSProperties)
+      : {}),
+    ...(viewportOffset?.bottom != null
+      ? ({ "--ais-chrome-offset-bottom": `${viewportOffset.bottom}px` } as React.CSSProperties)
+      : {}),
+    ...style,
+  };
+
   return (
-    <div className={`ais-chat-shell ${className ?? ""}`}>
+    <div ref={shellRef} className={`ais-chat-shell ${className ?? ""}`} style={shellStyle}>
       <ChatSidebar
         activeView={activeView}
         isOpen={sidebarOpen}

@@ -127,15 +127,19 @@ function ChatShellContent({
     currentSessionId,
     currentSessionTitle,
   } = useChat();
-  const { setAnnouncement, config } = useChatContext();
+  const { setTopBanner, setBottomBanner, config } = useChatContext();
 
   React.useEffect(() => {
     if (!tips.length) return;
     const randomTip = tips[Math.floor(Math.random() * tips.length)];
     if (randomTip) {
-      setAnnouncement(randomTip);
+      if (randomTip.position === "top") {
+        setTopBanner(randomTip);
+      } else {
+        setBottomBanner(randomTip);
+      }
     }
-  }, [setAnnouncement, tips]);
+  }, [setBottomBanner, setTopBanner, tips]);
 
   React.useEffect(() => {
     const BUILT_IN_COMMANDS = [

@@ -166,6 +166,14 @@
 
 /* ─── Chat Shell ─────────────────────────────────────────────── */
 
+/* The ChatProvider wrapper sits between the host's sized container and the
+   shell. When it directly hosts a full ChatShell, stretch it to the parent so
+   the shell's `height: 100%` has a bounded ancestor to resolve against.
+   Scoped with :has so widget/inline embeddings keep an auto-height wrapper. */
+[data-chat-provider="ai-chat-sdk"]:has(> .ais-chat-shell) {
+  height: 100%;
+}
+
 .ais-chat-shell {
   --ais-shell-header-height: 44px;
   /* Viewport height unit. Upgraded to 100dvh below where supported; the JS
@@ -187,7 +195,7 @@
      be pushed below the fold. */
   height: var(--ais-available-height);
   min-height: 0;
-  max-height: var(--ais-available-height);
+  max-height: min(100%, var(--ais-available-height));
   background: var(--chat-bg);
   color: var(--message-ai-text);
   position: relative;
@@ -750,7 +758,8 @@
 .ais-messages-blur-bottom {
   position: sticky;
   left: 0;
-  width: 100%;
+  width: min(100%, 800px);
+  align-self: center;
   height: 8px;
   background: var(--chat-bg);
   backdrop-filter: blur(8px);
@@ -1024,8 +1033,7 @@
 }
 
 .ais-composer {
-  position: sticky;
-  bottom: 0;
+  position: relative;
   z-index: 20;
   margin-top: auto;
   border-top: none;

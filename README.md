@@ -364,6 +364,16 @@ The root context provider. Must wrap all other SDK components.
 | `openFullChat`        | `"Open full chat"`                     |
 | `cancel`              | `"Cancel"`                             |
 | `artifactPanelClose`  | `"Close artifact panel"`               |
+| `approvalTitle`       | `"Approval required"`                  |
+| `approvalApprove`     | `"Approve"`                            |
+| `approvalDeny`        | `"Deny"`                               |
+| `approvalConfirmDeny` | `"Confirm deny"`                       |
+| `approvalDenyReasonPlaceholder` | `"Optional reason — sent to the agent"` |
+| `approvalWaiting`     | `"Waiting for approval through another channel…"` |
+| `approvalApproved`    | `"Approved"`                           |
+| `approvalDenied`      | `"Denied"`                             |
+| `approvalExpired`     | `"Expired"`                            |
+| `approvalCanceled`    | `"Canceled"`                           |
 
 ---
 
@@ -647,6 +657,7 @@ interface ChatAdapter {
   listSessionFiles?(sessionId: string): Promise<ChatSessionFileRef[]>;
   deleteSessionFile?(sessionId: string, fileId: string): Promise<void>;
   downloadFile?(sessionId: string, fileId: string): Promise<Blob>;
+  resolveToolApproval?(input: ResolveToolApprovalInput): Promise<void>;
 }
 ```
 
@@ -663,6 +674,7 @@ interface ChatAdapter {
 | `listSessionFiles`  | Called when the files panel opens or the session changes                                                                                                                                                                                                          |
 | `deleteSessionFile` | Called when the user removes a file from the session                                                                                                                                                                                                              |
 | `downloadFile`      | Preferred over `ChatSessionFileRef.downloadUrl`. When implemented, the files panel fetches bytes through it (your backend handles auth) and saves a `Blob`, so no direct/presigned URL is exposed to the browser. Falls back to opening `downloadUrl` when absent |
+| `resolveToolApproval` | Resolves a human-in-the-loop tool approval surfaced by a `tool_approval_request` stream event (the run is paused server-side until resolved). When implemented, approval cards render Approve/Deny actions; when absent, cards are passive ("waiting for approval") and resolution must come from another channel via `tool_approval_resolved`. `ResolveToolApprovalInput` carries `{ sessionId, approval, decision: "approved" \| "denied", reason? }`; the `approval` includes backend routing context (`executionId`, `toolCallId`) |
 
 **`SessionConfig` shape:**
 
@@ -741,6 +753,8 @@ data: [DONE]
 | `plan`             | `{ plan: { phases: AgentPlanPhase[] } }`                                                          | Agent plan phases displayed above the message while streaming                                                                                        |
 | `context_required` | `{ payload: { contextKey, questionIntro, choices[] } }`                                           | Pauses the conversation and renders interactive choice chips (see [Context variables and context_required](#context-variables-and-context_required)) |
 | `context_resolved` | `{ payload: { key: "contextId", value: string } }`                                                | Server resolved a required context value — updates `activeContextId` in the provider                                                                 |
+| `tool_approval_request` | `{ payload: { approvalId, toolCallId, toolName, args?, riskCategory?, expiresAt?, executionId? } }` | A HITL tool approval — the run is paused server-side. Renders an interactive approval card on the streaming message (actionable when the adapter implements `resolveToolApproval`) |
+| `tool_approval_resolved` | `{ payload: { approvalId, decision: "approved" \| "denied" \| "timeout" \| "canceled", reason? } }` | Resolves the approval card (from any channel); a deny `reason` is displayed on the card. `timeout` renders as expired |
 
 ### Minimal streaming server example (Node.js / Bun)
 

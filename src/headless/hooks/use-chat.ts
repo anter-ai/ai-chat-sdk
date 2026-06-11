@@ -18,6 +18,7 @@ import type {
   ChatMessage,
   MessageSource,
   StreamingState,
+  ToolApproval,
 } from "../types/chat";
 import type { SessionWithMessages } from "../types/session";
 import type { ChatAdapter } from "../types/adapter";
@@ -30,6 +31,8 @@ import {
   resolveEventType,
   runnerEventToStep,
   runnerStepConsumesSeq,
+  toolApprovalFromRequestEvent,
+  toolApprovalResolutionFromEvent,
 } from "./stream-event-utils";
 import { getSlashCommandRegistry } from "../../extensions/slash-command-registry";
 
@@ -111,6 +114,18 @@ export interface UseChatReturn {
   clearMessages: () => void;
   retryLastMessage: () => Promise<void>;
   loadSession: (session: SessionWithMessages) => void;
+  /** Whether the adapter can resolve tool approvals (drives card actionability). */
+  canResolveToolApprovals: boolean;
+  /**
+   * Resolve a pending tool approval via the adapter. Optimistically marks the
+   * card; an adapter rejection re-opens it with the error message. The server's
+   * `tool_approval_resolved` event remains authoritative.
+   */
+  resolveToolApproval: (
+    approval: ToolApproval,
+    decision: "approved" | "denied",
+    reason?: string,
+  ) => Promise<void>;
 }
 
 const ChatStateContext = createContext<UseChatReturn | null>(null);
@@ -455,6 +470,40 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
                   };
                 }
 
+                // HITL tool approvals: a request appends a pending card on the
+                // streaming message (the run is paused server-side); the resolved
+                // event — whether triggered by this client or another channel —
+                // flips the card's status and carries any deny reason.
+                if (eventType === "tool_approval_request") {
+                  const approval = toolApprovalFromRequestEvent(parsed);
+                  if (!approval) return msg;
+                  const existing = msg.toolApprovals ?? [];
+                  const idx = existing.findIndex((a) => a.approvalId === approval.approvalId);
+                  const nextApprovals =
+                    idx >= 0
+                      ? existing.map((a, i) => (i === idx ? { ...a, ...approval } : a))
+                      : [...existing, approval];
+                  return { ...msg, toolApprovals: nextApprovals };
+                }
+
+                if (eventType === "tool_approval_resolved") {
+                  const resolution = toolApprovalResolutionFromEvent(parsed);
+                  if (!resolution || !msg.toolApprovals?.length) return msg;
+                  return {
+                    ...msg,
+                    toolApprovals: msg.toolApprovals.map((a) =>
+                      a.approvalId === resolution.approvalId
+                        ? {
+                            ...a,
+                            status: resolution.status,
+                            reason: resolution.reason ?? a.reason ?? null,
+                            error: undefined,
+                          }
+                        : a,
+                    ),
+                  };
+                }
+
                 if (isComplete) {
                   const backendArtifactIds =
                     parsed.artifactIds ?? payloadArtifactIds ?? msg.artifactIds;
@@ -661,6 +710,58 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
     [setCurrentSession, setActiveContext],
   );
 
+  const canResolveToolApprovals = typeof adapter.resolveToolApproval === "function";
+
+  const patchToolApproval = useCallback(
+    (approvalId: string, patch: (approval: ToolApproval) => ToolApproval) => {
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (!msg.toolApprovals?.some((a) => a.approvalId === approvalId)) return msg;
+          return {
+            ...msg,
+            toolApprovals: msg.toolApprovals.map((a) =>
+              a.approvalId === approvalId ? patch(a) : a,
+            ),
+          };
+        }),
+      );
+    },
+    [],
+  );
+
+  const resolveToolApproval = useCallback(
+    async (approval: ToolApproval, decision: "approved" | "denied", reason?: string) => {
+      const resolve = adapter.resolveToolApproval?.bind(adapter);
+      if (!resolve) return;
+
+      // Optimistic: the server's tool_approval_resolved event is authoritative
+      // and will land on top of this with the persisted decision/reason.
+      patchToolApproval(approval.approvalId, (a) => ({
+        ...a,
+        status: decision,
+        reason: reason ?? a.reason ?? null,
+        error: undefined,
+      }));
+
+      try {
+        await resolve({
+          sessionId: currentSession?.sessionId ?? "",
+          approval,
+          decision,
+          ...(reason ? { reason } : {}),
+        });
+      } catch (error) {
+        // Re-open the card so the user can retry (or resolve via another channel).
+        patchToolApproval(approval.approvalId, (a) => ({
+          ...a,
+          status: "pending",
+          error: error instanceof Error ? error.message : "Failed to resolve the approval",
+        }));
+      }
+    },
+    [adapter, currentSession?.sessionId, patchToolApproval],
+  );
+
   return useMemo(
     () => ({
       messages,
@@ -675,6 +776,8 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
       clearMessages,
       retryLastMessage,
       loadSession,
+      canResolveToolApprovals,
+      resolveToolApproval,
     }),
     [
       messages,
@@ -687,6 +790,8 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
       clearMessages,
       retryLastMessage,
       loadSession,
+      canResolveToolApprovals,
+      resolveToolApproval,
     ],
   );
 }

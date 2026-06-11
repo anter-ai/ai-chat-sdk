@@ -7,6 +7,8 @@ import {
   resolveEventType,
   runnerEventToStep,
   runnerStepConsumesSeq,
+  toolApprovalFromRequestEvent,
+  toolApprovalResolutionFromEvent,
   type StreamEventShape,
 } from "./stream-event-utils";
 
@@ -199,5 +201,83 @@ describe("runnerStepConsumesSeq", () => {
     expect(runnerStepConsumesSeq("handoff")).toBe(true);
     expect(runnerStepConsumesSeq("thought")).toBe(false);
     expect(runnerStepConsumesSeq("status")).toBe(false);
+  });
+});
+
+describe("tool approval events", () => {
+  it("treats approval events as control events (never message content)", () => {
+    expect(isRunnerControlEvent("tool_approval_request")).toBe(true);
+    expect(isRunnerControlEvent("tool_approval_resolved")).toBe(true);
+  });
+
+  it("produces no step chip for approval events", () => {
+    expect(runnerEventToStep("tool_approval_request", { payload: {} }, 0)).toBeNull();
+    expect(runnerEventToStep("tool_approval_resolved", { payload: {} }, 0)).toBeNull();
+  });
+
+  it("parses a tool_approval_request frame into a pending approval", () => {
+    const approval = toolApprovalFromRequestEvent({
+      type: "tool_approval_request",
+      payload: {
+        approvalId: "approval_1",
+        executionId: "wexec_1",
+        agentId: "ragnt_1",
+        subAgentId: "rsubagnt_1",
+        toolCallId: "call_1",
+        toolName: "search_knowledge_base",
+        args: { query: "multi-agent" },
+        riskCategory: "read_only",
+        expiresAt: "2026-06-11T11:21:57.747Z",
+      },
+    } as StreamEventShape);
+
+    expect(approval).toEqual({
+      approvalId: "approval_1",
+      toolCallId: "call_1",
+      toolName: "search_knowledge_base",
+      args: { query: "multi-agent" },
+      riskCategory: "read_only",
+      expiresAt: "2026-06-11T11:21:57.747Z",
+      executionId: "wexec_1",
+      status: "pending",
+    });
+  });
+
+  it("returns null for a malformed approval request", () => {
+    expect(
+      toolApprovalFromRequestEvent({ payload: { toolName: "x" } } as StreamEventShape),
+    ).toBeNull();
+  });
+
+  it("parses a tool_approval_resolved frame with a deny reason", () => {
+    const resolution = toolApprovalResolutionFromEvent({
+      type: "tool_approval_resolved",
+      payload: {
+        approvalId: "approval_1",
+        toolCallId: "call_1",
+        decision: "denied",
+        reason: "Out of scope",
+      },
+    } as StreamEventShape);
+
+    expect(resolution).toEqual({
+      approvalId: "approval_1",
+      status: "denied",
+      reason: "Out of scope",
+    });
+  });
+
+  it("maps a timeout decision to expired and unknown decisions to canceled", () => {
+    expect(
+      toolApprovalResolutionFromEvent({
+        payload: { approvalId: "a1", decision: "timeout" },
+      } as StreamEventShape),
+    ).toEqual({ approvalId: "a1", status: "expired", reason: null });
+
+    expect(
+      toolApprovalResolutionFromEvent({
+        payload: { approvalId: "a1", decision: "???" },
+      } as StreamEventShape),
+    ).toEqual({ approvalId: "a1", status: "canceled", reason: null });
   });
 });

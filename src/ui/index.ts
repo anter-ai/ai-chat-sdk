@@ -12,6 +12,7 @@ export * from "./messages/record-chip";
 export * from "./messages/chat-messages";
 export * from "./messages/follow-up-suggestions";
 export * from "./messages/context-required-chips";
+export * from "./messages/tool-approval-card";
 export * from "./messages/reasoning-block";
 export * from "./primitives/loading-skeleton";
 export * from "./primitives/typing-indicator";

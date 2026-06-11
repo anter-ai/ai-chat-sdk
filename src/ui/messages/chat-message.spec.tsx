@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { ChatMessage } from "./chat-message";
 import "@testing-library/jest-dom";
 
@@ -142,5 +142,46 @@ describe("ChatMessage", () => {
 
     // It should render an ArtifactChip (we check for the title)
     expect(screen.getByText("Action Plan")).toBeInTheDocument();
+  });
+
+  it("renders an actionable tool approval card WHILE the message is streaming", () => {
+    const onResolveToolApproval = jest.fn();
+    const message = {
+      id: "6",
+      role: "assistant",
+      content: "",
+      timestamp: new Date(),
+      isStreaming: true,
+      toolApprovals: [
+        {
+          approvalId: "approval_1",
+          toolCallId: "call_1",
+          toolName: "delete_records",
+          riskCategory: "destructive",
+          status: "pending",
+        },
+      ],
+    } as any;
+
+    render(
+      <ChatMessage
+        message={message}
+        onRetry={mockOnRetry}
+        onFollowUp={mockOnFollowUp}
+        artifactsCtx={mockArtifactsCtx}
+        sourcesCtx={mockSourcesCtx}
+        canResolveToolApprovals
+        onResolveToolApproval={onResolveToolApproval}
+      />,
+    );
+
+    expect(screen.getByTestId("tool-approval-approval_1")).toBeInTheDocument();
+    expect(screen.getByText("delete_records")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+    expect(onResolveToolApproval).toHaveBeenCalledWith(
+      expect.objectContaining({ approvalId: "approval_1" }),
+      "approved",
+      undefined,
+    );
   });
 });

@@ -1,4 +1,4 @@
-import type { AgentStepEvent } from "../types/chat";
+import type { AgentStepEvent, ToolApproval, ToolApprovalStatus } from "../types/chat";
 
 export interface StreamEventShape {
   content?: string;
@@ -96,6 +96,8 @@ export function isRunnerControlEvent(eventType: string): boolean {
     case "handoff":
     case "agent_step_started":
     case "delegation_return":
+    case "tool_approval_request":
+    case "tool_approval_resolved":
       return true;
     default:
       return false;
@@ -194,4 +196,71 @@ export function runnerEventToStep(
 /** Whether a runner step type uses a stable id (collapses) vs. a per-occurrence id. */
 export function runnerStepConsumesSeq(eventType: string): boolean {
   return eventType === "tool_call" || eventType === "tool_result" || eventType === "handoff";
+}
+
+/**
+ * Parse a `tool_approval_request` frame into a pending {@link ToolApproval},
+ * or null when the payload is malformed. The runner emits these as data-only
+ * frames: `{ type: "tool_approval_request", payload: { approvalId, toolCallId,
+ * toolName, args, riskCategory, expiresAt, executionId, … } }`.
+ */
+export function toolApprovalFromRequestEvent(parsed: StreamEventShape): ToolApproval | null {
+  const payload = (parsed.payload ?? parsed) as Record<string, unknown>;
+  const approvalId = asString(payload["approvalId"]);
+  const toolCallId = asString(payload["toolCallId"]);
+  if (!approvalId || !toolCallId) return null;
+
+  const riskCategory = asString(payload["riskCategory"]);
+  const expiresAt = asString(payload["expiresAt"]);
+  const executionId = asString(payload["executionId"]);
+  return {
+    approvalId,
+    toolCallId,
+    toolName: asString(payload["toolName"]) || "tool",
+    ...(payload["args"] !== undefined ? { args: payload["args"] } : {}),
+    ...(riskCategory ? { riskCategory } : {}),
+    ...(expiresAt ? { expiresAt } : {}),
+    ...(executionId ? { executionId } : {}),
+    status: "pending",
+  };
+}
+
+export interface ToolApprovalResolution {
+  approvalId: string;
+  status: ToolApprovalStatus;
+  reason: string | null;
+}
+
+const RESOLVED_APPROVAL_STATUSES: ToolApprovalStatus[] = [
+  "approved",
+  "denied",
+  "expired",
+  "canceled",
+];
+
+/**
+ * Parse a `tool_approval_resolved` frame (`payload.decision` carries the final
+ * status, `payload.reason` an optional deny reason). A "timeout" decision maps
+ * to "expired"; unknown decisions map to "canceled" so the card never sticks
+ * in a pending state after resolution.
+ */
+export function toolApprovalResolutionFromEvent(
+  parsed: StreamEventShape,
+): ToolApprovalResolution | null {
+  const payload = (parsed.payload ?? parsed) as Record<string, unknown>;
+  const approvalId = asString(payload["approvalId"]);
+  if (!approvalId) return null;
+
+  const decision = asString(payload["decision"]);
+  const reason = asString(payload["reason"]);
+  return {
+    approvalId,
+    status:
+      decision === "timeout"
+        ? "expired"
+        : RESOLVED_APPROVAL_STATUSES.includes(decision as ToolApprovalStatus)
+          ? (decision as ToolApprovalStatus)
+          : "canceled",
+    reason: reason || null,
+  };
 }

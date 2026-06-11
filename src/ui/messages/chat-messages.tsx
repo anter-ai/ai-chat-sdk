@@ -23,7 +23,8 @@ export function ChatMessages({
   onRecordClick,
   emptyState,
 }: ChatMessagesProps) {
-  const { messages, retryLastMessage, sendMessage } = useChat();
+  const { messages, retryLastMessage, sendMessage, canResolveToolApprovals, resolveToolApproval } =
+    useChat();
   const { anchorRef, isAtBottom, scrollToBottom } = useStickyBottom();
 
   useEffect(() => {
@@ -64,6 +65,8 @@ export function ChatMessages({
                 void retryLastMessage();
               }}
               onRecordClick={onRecordClick}
+              canResolveToolApprovals={canResolveToolApprovals}
+              onResolveToolApproval={resolveToolApproval}
             />
           );
         })}

@@ -6,6 +6,7 @@ import { useChatContext } from "../../headless/context/chat-provider";
 import { SlashCommandMenu } from "./slash-command-menu";
 import { ComposerPlusMenu } from "./composer-plus-menu";
 import { ComposerToolsMenu } from "./composer-tools-menu";
+import { ComposerBanner } from "./composer-banner";
 import { ContextTagBar } from "./context-tag-bar";
 import { AttachmentChipBar } from "./attachment-chip-bar";
 import type { UploadingFile } from "./attachment-chip-bar";
@@ -36,8 +37,10 @@ export function ChatComposer({ onSendMessage, isStreaming, className }: ChatComp
     activeContextId,
     activeContextLabel,
     setActiveContext,
-    announcement,
-    setAnnouncement,
+    topBanner,
+    setTopBanner,
+    bottomBanner,
+    setBottomBanner,
   } = useChatContext();
   const { enableFileUpload } = config;
   const [value, setValue] = useState("");
@@ -199,22 +202,17 @@ export function ChatComposer({ onSendMessage, isStreaming, className }: ChatComp
         <ContextTagBar tags={[contextTag]} onRemove={() => setActiveContext(undefined)} />
       )}
 
-      {announcement && (
-        <ContextTagBar
-          layout="banner"
-          announcement={{
-            ...announcement,
-            onDismiss: () => {
-              if (announcement.onDismiss) {
-                announcement.onDismiss();
-              }
-              setAnnouncement(null);
-            },
-          }}
-        />
+      {topBanner && (
+        <ComposerBanner banner={topBanner} position="top" onDismiss={() => setTopBanner(null)} />
       )}
 
-      <div className={cn("ais-composer-container", announcement && "has-banner")}>
+      <div
+        className={cn(
+          "ais-composer-container",
+          topBanner && "has-top-banner",
+          bottomBanner && "has-bottom-banner",
+        )}
+      >
         {enableFileUpload && pendingFiles.length > 0 && (
           <AttachmentChipBar files={pendingFiles} onRemove={handleRemovePendingFile} />
         )}
@@ -345,6 +343,13 @@ export function ChatComposer({ onSendMessage, isStreaming, className }: ChatComp
           </div>
         </div>
       </div>
+      {bottomBanner && (
+        <ComposerBanner
+          banner={bottomBanner}
+          position="bottom"
+          onDismiss={() => setBottomBanner(null)}
+        />
+      )}
       <div className="ais-chat-footer">
         <p>{strings.footerDisclaimer}</p>
       </div>

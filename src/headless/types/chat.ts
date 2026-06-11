@@ -115,4 +115,9 @@ export interface ComposerAnnouncement {
   icon?: string;
   dismissible?: boolean;
   onDismiss?: () => void;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
+  position?: "top" | "bottom";
 }

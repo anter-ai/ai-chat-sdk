@@ -28,7 +28,13 @@ interface ChatContextValue {
   activeContextId?: string;
   activeContextLabel?: string;
   setActiveContext: (id: string | undefined, label?: string | undefined) => void;
+  topBanner: ComposerAnnouncement | null;
+  setTopBanner: (announcement: ComposerAnnouncement | null) => void;
+  bottomBanner: ComposerAnnouncement | null;
+  setBottomBanner: (announcement: ComposerAnnouncement | null) => void;
+  /** @deprecated Use bottomBanner/setBottomBanner */
   announcement: ComposerAnnouncement | null;
+  /** @deprecated Use setBottomBanner */
   setAnnouncement: (announcement: ComposerAnnouncement | null) => void;
   persistentContextVariables: Record<string, string>;
   setPersistentContextVariable: (key: string, value: string | undefined) => void;
@@ -114,7 +120,12 @@ export function ChatProvider({
   const [orgLabel, setOrgLabel] = useState<string | undefined>(undefined);
   const [activeContextId, setActiveContextId] = useState<string | undefined>(undefined);
   const [activeContextLabel, setActiveContextLabel] = useState<string | undefined>(undefined);
-  const [announcement, setAnnouncement] = useState<ComposerAnnouncement | null>(null);
+  const [topBannerOverride, setTopBannerOverride] = useState<
+    ComposerAnnouncement | null | undefined
+  >(undefined);
+  const [bottomBannerOverride, setBottomBannerOverride] = useState<
+    ComposerAnnouncement | null | undefined
+  >(undefined);
   const [persistentContextVariables, setPersistentContextVariablesState] = useState<
     Record<string, string>
   >({});
@@ -133,6 +144,28 @@ export function ChatProvider({
       return { ...prev, [key]: value };
     });
   }, []);
+
+  const setTopBanner = useCallback((announcement: ComposerAnnouncement | null) => {
+    setTopBannerOverride(announcement);
+  }, []);
+
+  const setBottomBanner = useCallback((announcement: ComposerAnnouncement | null) => {
+    setBottomBannerOverride(announcement);
+  }, []);
+
+  const topBanner =
+    topBannerOverride !== undefined ? topBannerOverride : (plugins.composerTopBanner ?? null);
+  const bottomBanner =
+    bottomBannerOverride !== undefined
+      ? bottomBannerOverride
+      : (plugins.composerBottomBanner ?? null);
+
+  const setAnnouncement = useCallback(
+    (announcement: ComposerAnnouncement | null) => {
+      setBottomBanner(announcement);
+    },
+    [setBottomBanner],
+  );
 
   const mergedConfig: Required<ChatConfig> = {
     enableArtifacts: config.enableArtifacts ?? true,
@@ -163,7 +196,11 @@ export function ChatProvider({
       activeContextId,
       activeContextLabel,
       setActiveContext,
-      announcement,
+      topBanner,
+      setTopBanner,
+      bottomBanner,
+      setBottomBanner,
+      announcement: bottomBanner,
       setAnnouncement,
       persistentContextVariables,
       setPersistentContextVariable,
@@ -180,9 +217,13 @@ export function ChatProvider({
       activeContextId,
       activeContextLabel,
       setActiveContext,
-      announcement,
+      topBanner,
+      setTopBanner,
+      bottomBanner,
+      setBottomBanner,
       persistentContextVariables,
       setPersistentContextVariable,
+      setAnnouncement,
     ],
   );
 

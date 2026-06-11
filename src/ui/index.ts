@@ -3,6 +3,7 @@ export * from "./artifact-panel/artifact-preview";
 export * from "./artifact-panel/artifact-tabs";
 export * from "./command-palette/command-palette";
 export * from "./composer/attachment-chip-bar";
+export * from "./composer/composer-banner";
 export * from "./composer/chat-composer";
 export * from "./composer/context-tag-bar";
 export * from "./composer/slash-command-menu";

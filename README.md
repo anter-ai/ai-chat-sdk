@@ -403,16 +403,18 @@ A full-page chat interface with a collapsible sidebar, resizable panels for sour
 />
 ```
 
-| Prop               | Type                                    | Description                                                                                           |
-| ------------------ | --------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `emptyState`       | `React.ReactNode`                       | Rendered when there are no messages. Defaults to `<ChatEmptyState />`                                 |
-| `tips`             | `ComposerAnnouncement[]`                | Tip banners shown randomly in the composer on mount                                                   |
-| `initialSessionId` | `string`                                | Session to load on mount. Triggers `adapter.loadSession`                                              |
-| `onSessionChange`  | `(id?: string) => void`                 | Fires whenever the active session changes (new or cleared)                                            |
-| `onExportArtifact` | `(artifactId: string) => Promise<void>` | Artifact export callback. When omitted, the export button is hidden                                   |
-| `onRecordClick`    | `(record: RecordTag) => void`           | Called when the user clicks an inline record chip                                                     |
-| `recordPanel`      | `React.ReactNode`                       | Custom panel content rendered in the right resizable pane (replaces the artifact panel when provided) |
-| `className`        | `string`                                | Additional CSS class on the shell root element                                                        |
+| Prop               | Type                                    | Description                                                                                                                                                                                                                  |
+| ------------------ | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `emptyState`       | `React.ReactNode`                       | Rendered when there are no messages. Defaults to `<ChatEmptyState />`                                                                                                                                                        |
+| `tips`             | `ComposerAnnouncement[]`                | Tip banners shown randomly in the composer on mount                                                                                                                                                                          |
+| `initialSessionId` | `string`                                | Session to load on mount. Triggers `adapter.loadSession`                                                                                                                                                                     |
+| `onSessionChange`  | `(id?: string) => void`                 | Fires whenever the active session changes (new or cleared)                                                                                                                                                                   |
+| `onExportArtifact` | `(artifactId: string) => Promise<void>` | Artifact export callback. When omitted, the export button is hidden                                                                                                                                                          |
+| `onRecordClick`    | `(record: RecordTag) => void`           | Called when the user clicks an inline record chip                                                                                                                                                                            |
+| `recordPanel`      | `React.ReactNode`                       | Custom panel content rendered in the right resizable pane (replaces the artifact panel when provided)                                                                                                                        |
+| `className`        | `string`                                | Additional CSS class on the shell root element                                                                                                                                                                               |
+| `style`            | `React.CSSProperties`                   | Inline styles merged onto the shell root. Pass `{ height: "100%" }` when a bounded parent provides the height                                                                                                                |
+| `viewportOffset`   | `{ top?: number; bottom?: number }`     | Pixels of host-app chrome (header/footer) rendered outside the shell — subtracted from the viewport when computing the shell's height. Equivalent to setting `--ais-chrome-offset-top` / `--ais-chrome-offset-bottom` in CSS |
 
 > **Height requirement:** `ChatShell` manages its own internal scroll and resizable panel layout. It must be rendered inside a container with an explicit, bounded height — a flex parent with `flex: 1` or `height: 100%`. Without a bounded height the resizable panels have nothing to fill and will collapse.
 >
@@ -434,6 +436,22 @@ A full-page chat interface with a collapsible sidebar, resizable panels for sour
 > ```
 >
 > If you are embedding `ChatShell` inside a page layout that already provides a scrollable `overflow-y: auto` container, wrap it with `overflow: hidden` on the parent so `ChatShell`'s internal scroll takes over from the page scroll.
+
+> **Mobile height contract (important):** on mobile, `100vh` is **not** the visible viewport — iOS Safari resolves it to the _largest_ viewport (browser chrome hidden), so anything sized with `100vh` pushes the composer below the fold while the address bar is showing. The shell protects itself in three layers:
+>
+> 1. **It never exceeds the visible viewport.** The shell's height defaults to `--ais-available-height` = dynamic viewport height (`100dvh`) minus the declared host chrome, and is hard-capped with `max-height: min(100%, var(--ais-available-height))` — so even a mis-sized parent cannot push the composer below the fold.
+> 2. **Declare your app chrome.** If your app renders a header (and/or footer) outside the shell, tell the shell how many pixels it consumes:
+>
+>    ```tsx
+>    // host app with a 52px header above the shell
+>    <ChatShell viewportOffset={{ top: 52 }} />
+>    ```
+>
+>    or equivalently in CSS: `.my-shell { --ais-chrome-offset-top: 52px; }`. Skip this only when the parent chain is itself bounded by the _dynamic_ viewport (see below) — then `style={{ height: "100%" }}` is enough.
+>
+> 3. **Browsers without `dvh`** get a JavaScript fallback: the shell tracks `window.visualViewport` and mirrors its height into `--ais-viewport-height` automatically.
+>
+> Host-side rule of thumb: never size the ancestor chain of `ChatShell` with `100vh`. Use `100dvh` (with a `100vh` fallback for older browsers) or a flex chain rooted at a `height: 100dvh` element, then give the shell `style={{ height: "100%" }}`.
 
 **`ComposerAnnouncement` shape:**
 

@@ -111,6 +111,12 @@ export interface UseChatReturn {
     sessionId?: string,
     extraContextVariables?: Record<string, string>,
   ) => Promise<void>;
+  /**
+   * Stop the in-flight response (Stop button). Cancels the run server-side via
+   * the adapter's optional `cancelRun`, then aborts the local stream and marks
+   * the streaming message as stopped by the user.
+   */
+  stopStreaming: () => void;
   clearMessages: () => void;
   retryLastMessage: () => Promise<void>;
   loadSession: (session: SessionWithMessages) => void;
@@ -148,6 +154,9 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
   const [isLoading, setIsLoading] = useState(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
+  // Backend execution id of the in-flight run, captured from the stream's
+  // `started` event — required to cancel the run server-side on Stop.
+  const activeExecutionIdRef = useRef<string | null>(null);
   const lastUserMessageRef = useRef<string>("");
   const onArtifactsReadyRef = useRef(onArtifactsReady);
   onArtifactsReadyRef.current = onArtifactsReady;
@@ -165,12 +174,334 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
   const clearMessages = useCallback(() => {
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
+    activeExecutionIdRef.current = null;
     setMessages([]);
     setStreamingState({ isStreaming: false });
     setIsLoading(false);
     setCurrentSession(undefined);
     setActiveContext(undefined);
   }, [setCurrentSession, setActiveContext]);
+
+  const consumeStream = useCallback(
+    async (
+      reader: ReadableStreamDefaultReader<Uint8Array>,
+      assistantMessageId: string,
+      signal: AbortSignal,
+    ) => {
+      const decoder = new TextDecoder();
+      const parser = createParser({
+        onEvent(event: EventSourceMessage) {
+          if (event.data === "[DONE]") {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMessageId
+                  ? {
+                      ...msg,
+                      isStreaming: false,
+                      elapsedMs: msg.startedAt ? Date.now() - msg.startedAt : msg.elapsedMs,
+                    }
+                  : msg,
+              ),
+            );
+            setStreamingState({ isStreaming: false });
+            setIsLoading(false);
+            return;
+          }
+
+          let parsed: ParsedEvent;
+          try {
+            parsed = JSON.parse(event.data) as ParsedEvent;
+          } catch {
+            return;
+          }
+
+          const outerEventType = resolveEventType(event.event, parsed);
+
+          // The runner's `started` frame carries the backend execution id —
+          // captured so Stop can cancel the run server-side.
+          if (outerEventType === "started") {
+            const startedExecutionId = (parsed as Record<string, unknown>)["executionId"];
+            if (typeof startedExecutionId === "string" && startedExecutionId) {
+              activeExecutionIdRef.current = startedExecutionId;
+              setStreamingState((prev) =>
+                prev.isStreaming ? { ...prev, executionId: startedExecutionId } : prev,
+              );
+            }
+          }
+
+          // The agent-runner emits control events (thought/tool_call/tool_result/status and the
+          // multi-agent handoff frames) that must surface as step chips, never as message text.
+          const isRunnerControl = isRunnerControlEvent(outerEventType);
+          const isCompletionSignal =
+            outerEventType === "done" ||
+            parsed.isComplete === true ||
+            parsed.type === "complete" ||
+            isRunnerCompletion(outerEventType, parsed);
+
+          let runnerStep: AgentStepEvent | null = null;
+          if (isRunnerControl) {
+            runnerStep = runnerEventToStep(outerEventType, parsed, stepSeqRef.current);
+            if (runnerStep && runnerStepConsumesSeq(outerEventType)) {
+              stepSeqRef.current += 1;
+            }
+          }
+
+          if (outerEventType === "artifact" && parsed.payload) {
+            onArtifactsReadyRef.current?.([parsed.payload as unknown as Artifact]);
+          }
+
+          // context_resolved: the server resolved a required context value.
+          // Accept both "contextId" (new) and "frameworkId" (legacy backend compat).
+          if (outerEventType === "context_resolved" && parsed.payload) {
+            const { key, value } = parsed.payload as {
+              key?: string;
+              value?: string;
+            };
+            if ((key === "contextId" || key === "frameworkId") && typeof value === "string") {
+              setActiveContext(value);
+            }
+          }
+
+          const rawParsedContent = extractContent(parsed);
+          if (rawParsedContent && outerEventType !== "artifact" && !isRunnerControl) {
+            accumContentRef.current += rawParsedContent;
+          }
+
+          let frontendArtifacts: Artifact[] = [];
+          const originalAccumContent = accumContentRef.current;
+          let cleanedAccumContent = originalAccumContent;
+          let frontendCitations: MessageSource[] = [];
+          let frontendRecords: RecordTag[] = [];
+          let frontendSuggestions: string[] = [];
+          if (isCompletionSignal) {
+            const extracted = extractArtifactsFromContent(originalAccumContent, assistantMessageId);
+            if (extracted.artifacts.length > 0) {
+              frontendArtifacts = extracted.artifacts;
+              cleanedAccumContent = extracted.cleanedContent;
+              onArtifactsReadyRef.current?.(frontendArtifacts);
+            }
+
+            const doneSources: MessageSource[] = Array.isArray(parsed.sources)
+              ? (parsed.sources as MessageSource[])
+              : Array.isArray(parsed.payload?.sources)
+                ? (parsed.payload.sources as MessageSource[])
+                : [];
+            const citationResult = extractCitationsFromContent(cleanedAccumContent, doneSources);
+            cleanedAccumContent = citationResult.cleanedContent;
+            frontendCitations = citationResult.citations;
+
+            const recordResult = extractRecordTagsFromContent(cleanedAccumContent);
+            cleanedAccumContent = recordResult.cleanedContent;
+            frontendRecords = recordResult.records;
+
+            const suggestionsResult = extractSuggestionsFromContent(cleanedAccumContent);
+            cleanedAccumContent = suggestionsResult.cleanedContent;
+            frontendSuggestions = suggestionsResult.suggestions;
+          } else {
+            if (accumContentRef.current.includes("<record")) {
+              const { cleanedContent } = extractRecordTagsFromContent(accumContentRef.current);
+              cleanedAccumContent = cleanedContent;
+            }
+          }
+
+          setMessages((prev) =>
+            prev.map((msg) => {
+              if (msg.id !== assistantMessageId) return msg;
+
+              const eventType = resolveEventType(event.event, parsed);
+              const parsedError = extractError(parsed);
+              const parsedContent = extractContent(parsed);
+              const payload = parsed.payload;
+              const payloadSources = Array.isArray(payload?.sources)
+                ? (payload.sources as MessageSource[])
+                : undefined;
+              const payloadArtifactIds = Array.isArray(payload?.artifactIds)
+                ? (payload.artifactIds as string[])
+                : undefined;
+              const isComplete = isCompletionSignal;
+
+              if (eventType === "artifact" && payload) {
+                const artifact = payload as unknown as Artifact;
+                return {
+                  ...msg,
+                  artifactIds: [...(msg.artifactIds ?? []), artifact.artifactId],
+                };
+              }
+
+              if (eventType === "step" && parsed.step) {
+                const existing = msg.steps ?? [];
+                const idx = existing.findIndex((s) => s.step_id === parsed.step?.step_id);
+                const nextSteps =
+                  idx >= 0
+                    ? existing.map((s, i) => (i === idx ? { ...s, ...parsed.step } : s))
+                    : [...existing, parsed.step];
+                return { ...msg, steps: nextSteps };
+              }
+
+              // Runner control event mapped to a step chip (thought → reasoning,
+              // tool_call/tool_result → tool steps, handoff → skill boundary). Returning
+              // here also prevents thought reasoning text from leaking into the bubble.
+              if (runnerStep) {
+                const step = runnerStep;
+                const existing = msg.steps ?? [];
+                const idx = existing.findIndex((s) => s.step_id === step.step_id);
+                const nextSteps =
+                  idx >= 0
+                    ? existing.map((s, i) => (i === idx ? { ...s, ...step } : s))
+                    : [...existing, step];
+                return { ...msg, steps: nextSteps };
+              }
+
+              if (eventType === "plan" && parsed.plan) {
+                return { ...msg, plan: parsed.plan.phases };
+              }
+
+              if (eventType === "context_required" && parsed.contextKey && parsed.choices) {
+                return {
+                  ...msg,
+                  contextRequired: {
+                    contextKey: parsed.contextKey,
+                    questionIntro: parsed.questionIntro ?? "",
+                    choices: parsed.choices,
+                  },
+                };
+              }
+
+              // HITL tool approvals: a request appends a pending card on the
+              // streaming message (the run is paused server-side); the resolved
+              // event — whether triggered by this client or another channel —
+              // flips the card's status and carries any deny reason.
+              if (eventType === "tool_approval_request") {
+                const approval = toolApprovalFromRequestEvent(parsed);
+                if (!approval) return msg;
+                const existing = msg.toolApprovals ?? [];
+                const idx = existing.findIndex((a) => a.approvalId === approval.approvalId);
+                const nextApprovals =
+                  idx >= 0
+                    ? existing.map((a, i) => (i === idx ? { ...a, ...approval } : a))
+                    : [...existing, approval];
+                return { ...msg, toolApprovals: nextApprovals };
+              }
+
+              if (eventType === "tool_approval_resolved") {
+                const resolution = toolApprovalResolutionFromEvent(parsed);
+                if (!resolution || !msg.toolApprovals?.length) return msg;
+                return {
+                  ...msg,
+                  toolApprovals: msg.toolApprovals.map((a) =>
+                    a.approvalId === resolution.approvalId
+                      ? {
+                          ...a,
+                          status: resolution.status,
+                          reason: resolution.reason ?? a.reason ?? null,
+                          error: undefined,
+                        }
+                      : a,
+                  ),
+                };
+              }
+
+              if (isComplete) {
+                const backendArtifactIds =
+                  parsed.artifactIds ?? payloadArtifactIds ?? msg.artifactIds;
+                const allArtifactIds = [
+                  ...(backendArtifactIds ?? []),
+                  ...frontendArtifacts.map((a) => a.artifactId),
+                ];
+                const contentWasModified = cleanedAccumContent !== originalAccumContent;
+                const hasClientSideChanges =
+                  frontendArtifacts.length > 0 ||
+                  frontendCitations.length > 0 ||
+                  frontendRecords.length > 0 ||
+                  contentWasModified;
+                const doneSuggestions: string[] = Array.isArray(parsed.suggestions)
+                  ? (parsed.suggestions as unknown[]).filter(
+                      (s): s is string => typeof s === "string",
+                    )
+                  : [];
+                const finalSuggestions =
+                  doneSuggestions.length > 0 ? doneSuggestions : frontendSuggestions;
+                return {
+                  ...msg,
+                  content: hasClientSideChanges ? cleanedAccumContent : msg.content,
+                  isStreaming: false,
+                  artifactIds: allArtifactIds.length > 0 ? allArtifactIds : msg.artifactIds,
+                  sources:
+                    frontendCitations.length > 0
+                      ? frontendCitations
+                      : (parsed.sources ?? payloadSources ?? msg.sources),
+                  records: frontendRecords.length > 0 ? frontendRecords : msg.records,
+                  suggestions: finalSuggestions.length > 0 ? finalSuggestions : msg.suggestions,
+                  elapsedMs: msg.startedAt ? Date.now() - msg.startedAt : msg.elapsedMs,
+                };
+              }
+
+              if (eventType === "error" || parsedError) {
+                return {
+                  ...msg,
+                  isStreaming: false,
+                  error: parsedError ?? "Unexpected stream error",
+                  elapsedMs: msg.startedAt ? Date.now() - msg.startedAt : msg.elapsedMs,
+                };
+              }
+
+              const nextContent = parsedContent ? `${msg.content}${parsedContent}` : msg.content;
+
+              return {
+                ...msg,
+                content: nextContent,
+                sources: parsed.sources ?? payloadSources ?? msg.sources,
+                isStreaming: !isComplete,
+                elapsedMs: isComplete && msg.startedAt ? Date.now() - msg.startedAt : msg.elapsedMs,
+              };
+            }),
+          );
+
+          const eventType = resolveEventType(event.event, parsed);
+          if (isCompletionSignal || eventType === "error") {
+            setStreamingState({ isStreaming: false });
+            setIsLoading(false);
+          }
+        },
+        onError() {
+          setStreamingState({
+            isStreaming: false,
+            error: "Failed to parse stream event",
+          });
+          setIsLoading(false);
+        },
+      });
+
+      while (true) {
+        if (signal.aborted) break;
+        const { done, value } = await reader.read();
+        if (done) break;
+        parser.feed(decoder.decode(value, { stream: true }));
+      }
+
+      const tail = decoder.decode();
+      if (tail) {
+        parser.feed(tail);
+      }
+
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantMessageId && msg.isStreaming
+            ? {
+                ...msg,
+                isStreaming: false,
+                elapsedMs: msg.startedAt ? Date.now() - msg.startedAt : msg.elapsedMs,
+              }
+            : msg,
+        ),
+      );
+      setStreamingState({ isStreaming: false });
+      setIsLoading(false);
+
+      reader.releaseLock();
+    },
+    [setMessages, setStreamingState, setIsLoading, setActiveContext],
+  );
 
   const sendMessage = useCallback(
     async (
@@ -202,6 +533,7 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
       abortControllerRef.current?.abort();
       const controller = new AbortController();
       abortControllerRef.current = controller;
+      activeExecutionIdRef.current = null;
       const slashMatch = trimmed.match(/^(\/\w+)\s*([\s\S]*)$/);
       const commandName = slashMatch?.[1];
       const commandArgs = (slashMatch?.[2] ?? "").trim();
@@ -285,323 +617,24 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
             ? `Execute ${matchedCommand.name}`
             : trimmed;
 
-        const stream = await adapter.sendMessage({
-          organizationId,
-          sessionId,
-          message: finalMessage,
-          ...(attachedFileIds?.length ? { attachedFileIds } : {}),
-          contextVariables: {
-            ...persistentContextVariablesRef.current,
-            ...(activeContextIdRef.current ? { contextId: activeContextIdRef.current } : {}),
-            ...(matchedCommand ? { slashCommand: matchedCommand.slashCommandId } : {}),
-            ...extraContextVariables,
+        const stream = await adapter.sendMessage(
+          {
+            organizationId,
+            sessionId,
+            message: finalMessage,
+            ...(attachedFileIds?.length ? { attachedFileIds } : {}),
+            contextVariables: {
+              ...persistentContextVariablesRef.current,
+              ...(activeContextIdRef.current ? { contextId: activeContextIdRef.current } : {}),
+              ...(matchedCommand ? { slashCommand: matchedCommand.slashCommandId } : {}),
+              ...extraContextVariables,
+            },
           },
-        });
+          { signal: controller.signal },
+        );
 
         const reader = stream.getReader();
-        const decoder = new TextDecoder();
-
-        const parser = createParser({
-          onEvent(event: EventSourceMessage) {
-            if (event.data === "[DONE]") {
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === assistantMessage.id
-                    ? {
-                        ...msg,
-                        isStreaming: false,
-                        elapsedMs: msg.startedAt ? Date.now() - msg.startedAt : msg.elapsedMs,
-                      }
-                    : msg,
-                ),
-              );
-              setStreamingState({ isStreaming: false });
-              setIsLoading(false);
-              return;
-            }
-
-            let parsed: ParsedEvent;
-            try {
-              parsed = JSON.parse(event.data) as ParsedEvent;
-            } catch {
-              return;
-            }
-
-            const outerEventType = resolveEventType(event.event, parsed);
-
-            // The agent-runner emits control events (thought/tool_call/tool_result/status and the
-            // multi-agent handoff frames) that must surface as step chips, never as message text.
-            const isRunnerControl = isRunnerControlEvent(outerEventType);
-            const isCompletionSignal =
-              outerEventType === "done" ||
-              parsed.isComplete === true ||
-              parsed.type === "complete" ||
-              isRunnerCompletion(outerEventType, parsed);
-
-            let runnerStep: AgentStepEvent | null = null;
-            if (isRunnerControl) {
-              runnerStep = runnerEventToStep(outerEventType, parsed, stepSeqRef.current);
-              if (runnerStep && runnerStepConsumesSeq(outerEventType)) {
-                stepSeqRef.current += 1;
-              }
-            }
-
-            if (outerEventType === "artifact" && parsed.payload) {
-              onArtifactsReadyRef.current?.([parsed.payload as unknown as Artifact]);
-            }
-
-            // context_resolved: the server resolved a required context value.
-            // Accept both "contextId" (new) and "frameworkId" (legacy backend compat).
-            if (outerEventType === "context_resolved" && parsed.payload) {
-              const { key, value } = parsed.payload as {
-                key?: string;
-                value?: string;
-              };
-              if ((key === "contextId" || key === "frameworkId") && typeof value === "string") {
-                setActiveContext(value);
-              }
-            }
-
-            const rawParsedContent = extractContent(parsed);
-            if (rawParsedContent && outerEventType !== "artifact" && !isRunnerControl) {
-              accumContentRef.current += rawParsedContent;
-            }
-
-            let frontendArtifacts: Artifact[] = [];
-            const originalAccumContent = accumContentRef.current;
-            let cleanedAccumContent = originalAccumContent;
-            let frontendCitations: MessageSource[] = [];
-            let frontendRecords: RecordTag[] = [];
-            let frontendSuggestions: string[] = [];
-            if (isCompletionSignal) {
-              const extracted = extractArtifactsFromContent(
-                originalAccumContent,
-                assistantMessage.id,
-              );
-              if (extracted.artifacts.length > 0) {
-                frontendArtifacts = extracted.artifacts;
-                cleanedAccumContent = extracted.cleanedContent;
-                onArtifactsReadyRef.current?.(frontendArtifacts);
-              }
-
-              const doneSources: MessageSource[] = Array.isArray(parsed.sources)
-                ? (parsed.sources as MessageSource[])
-                : Array.isArray(parsed.payload?.sources)
-                  ? (parsed.payload.sources as MessageSource[])
-                  : [];
-              const citationResult = extractCitationsFromContent(cleanedAccumContent, doneSources);
-              cleanedAccumContent = citationResult.cleanedContent;
-              frontendCitations = citationResult.citations;
-
-              const recordResult = extractRecordTagsFromContent(cleanedAccumContent);
-              cleanedAccumContent = recordResult.cleanedContent;
-              frontendRecords = recordResult.records;
-
-              const suggestionsResult = extractSuggestionsFromContent(cleanedAccumContent);
-              cleanedAccumContent = suggestionsResult.cleanedContent;
-              frontendSuggestions = suggestionsResult.suggestions;
-            } else {
-              if (accumContentRef.current.includes("<record")) {
-                const { cleanedContent } = extractRecordTagsFromContent(accumContentRef.current);
-                cleanedAccumContent = cleanedContent;
-              }
-            }
-
-            setMessages((prev) =>
-              prev.map((msg) => {
-                if (msg.id !== assistantMessage.id) return msg;
-
-                const eventType = resolveEventType(event.event, parsed);
-                const parsedError = extractError(parsed);
-                const parsedContent = extractContent(parsed);
-                const payload = parsed.payload;
-                const payloadSources = Array.isArray(payload?.sources)
-                  ? (payload.sources as MessageSource[])
-                  : undefined;
-                const payloadArtifactIds = Array.isArray(payload?.artifactIds)
-                  ? (payload.artifactIds as string[])
-                  : undefined;
-                const isComplete = isCompletionSignal;
-
-                if (eventType === "artifact" && payload) {
-                  const artifact = payload as unknown as Artifact;
-                  return {
-                    ...msg,
-                    artifactIds: [...(msg.artifactIds ?? []), artifact.artifactId],
-                  };
-                }
-
-                if (eventType === "step" && parsed.step) {
-                  const existing = msg.steps ?? [];
-                  const idx = existing.findIndex((s) => s.step_id === parsed.step?.step_id);
-                  const nextSteps =
-                    idx >= 0
-                      ? existing.map((s, i) => (i === idx ? { ...s, ...parsed.step } : s))
-                      : [...existing, parsed.step];
-                  return { ...msg, steps: nextSteps };
-                }
-
-                // Runner control event mapped to a step chip (thought → reasoning,
-                // tool_call/tool_result → tool steps, handoff → skill boundary). Returning
-                // here also prevents thought reasoning text from leaking into the bubble.
-                if (runnerStep) {
-                  const step = runnerStep;
-                  const existing = msg.steps ?? [];
-                  const idx = existing.findIndex((s) => s.step_id === step.step_id);
-                  const nextSteps =
-                    idx >= 0
-                      ? existing.map((s, i) => (i === idx ? { ...s, ...step } : s))
-                      : [...existing, step];
-                  return { ...msg, steps: nextSteps };
-                }
-
-                if (eventType === "plan" && parsed.plan) {
-                  return { ...msg, plan: parsed.plan.phases };
-                }
-
-                if (eventType === "context_required" && parsed.contextKey && parsed.choices) {
-                  return {
-                    ...msg,
-                    contextRequired: {
-                      contextKey: parsed.contextKey,
-                      questionIntro: parsed.questionIntro ?? "",
-                      choices: parsed.choices,
-                    },
-                  };
-                }
-
-                // HITL tool approvals: a request appends a pending card on the
-                // streaming message (the run is paused server-side); the resolved
-                // event — whether triggered by this client or another channel —
-                // flips the card's status and carries any deny reason.
-                if (eventType === "tool_approval_request") {
-                  const approval = toolApprovalFromRequestEvent(parsed);
-                  if (!approval) return msg;
-                  const existing = msg.toolApprovals ?? [];
-                  const idx = existing.findIndex((a) => a.approvalId === approval.approvalId);
-                  const nextApprovals =
-                    idx >= 0
-                      ? existing.map((a, i) => (i === idx ? { ...a, ...approval } : a))
-                      : [...existing, approval];
-                  return { ...msg, toolApprovals: nextApprovals };
-                }
-
-                if (eventType === "tool_approval_resolved") {
-                  const resolution = toolApprovalResolutionFromEvent(parsed);
-                  if (!resolution || !msg.toolApprovals?.length) return msg;
-                  return {
-                    ...msg,
-                    toolApprovals: msg.toolApprovals.map((a) =>
-                      a.approvalId === resolution.approvalId
-                        ? {
-                            ...a,
-                            status: resolution.status,
-                            reason: resolution.reason ?? a.reason ?? null,
-                            error: undefined,
-                          }
-                        : a,
-                    ),
-                  };
-                }
-
-                if (isComplete) {
-                  const backendArtifactIds =
-                    parsed.artifactIds ?? payloadArtifactIds ?? msg.artifactIds;
-                  const allArtifactIds = [
-                    ...(backendArtifactIds ?? []),
-                    ...frontendArtifacts.map((a) => a.artifactId),
-                  ];
-                  const contentWasModified = cleanedAccumContent !== originalAccumContent;
-                  const hasClientSideChanges =
-                    frontendArtifacts.length > 0 ||
-                    frontendCitations.length > 0 ||
-                    frontendRecords.length > 0 ||
-                    contentWasModified;
-                  const doneSuggestions: string[] = Array.isArray(parsed.suggestions)
-                    ? (parsed.suggestions as unknown[]).filter(
-                        (s): s is string => typeof s === "string",
-                      )
-                    : [];
-                  const finalSuggestions =
-                    doneSuggestions.length > 0 ? doneSuggestions : frontendSuggestions;
-                  return {
-                    ...msg,
-                    content: hasClientSideChanges ? cleanedAccumContent : msg.content,
-                    isStreaming: false,
-                    artifactIds: allArtifactIds.length > 0 ? allArtifactIds : msg.artifactIds,
-                    sources:
-                      frontendCitations.length > 0
-                        ? frontendCitations
-                        : (parsed.sources ?? payloadSources ?? msg.sources),
-                    records: frontendRecords.length > 0 ? frontendRecords : msg.records,
-                    suggestions: finalSuggestions.length > 0 ? finalSuggestions : msg.suggestions,
-                    elapsedMs: msg.startedAt ? Date.now() - msg.startedAt : msg.elapsedMs,
-                  };
-                }
-
-                if (eventType === "error" || parsedError) {
-                  return {
-                    ...msg,
-                    isStreaming: false,
-                    error: parsedError ?? "Unexpected stream error",
-                    elapsedMs: msg.startedAt ? Date.now() - msg.startedAt : msg.elapsedMs,
-                  };
-                }
-
-                const nextContent = parsedContent ? `${msg.content}${parsedContent}` : msg.content;
-
-                return {
-                  ...msg,
-                  content: nextContent,
-                  sources: parsed.sources ?? payloadSources ?? msg.sources,
-                  isStreaming: !isComplete,
-                  elapsedMs:
-                    isComplete && msg.startedAt ? Date.now() - msg.startedAt : msg.elapsedMs,
-                };
-              }),
-            );
-
-            const eventType = resolveEventType(event.event, parsed);
-            if (isCompletionSignal || eventType === "error") {
-              setStreamingState({ isStreaming: false });
-              setIsLoading(false);
-            }
-          },
-          onError() {
-            setStreamingState({
-              isStreaming: false,
-              error: "Failed to parse stream event",
-            });
-            setIsLoading(false);
-          },
-        });
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          parser.feed(decoder.decode(value, { stream: true }));
-        }
-
-        const tail = decoder.decode();
-        if (tail) {
-          parser.feed(tail);
-        }
-
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === assistantMessage.id && msg.isStreaming
-              ? {
-                  ...msg,
-                  isStreaming: false,
-                  elapsedMs: msg.startedAt ? Date.now() - msg.startedAt : msg.elapsedMs,
-                }
-              : msg,
-          ),
-        );
-        setStreamingState({ isStreaming: false });
-        setIsLoading(false);
-
-        reader.releaseLock();
+        await consumeStream(reader, assistantMessage.id, controller.signal);
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {
           setStreamingState({ isStreaming: false });
@@ -628,9 +661,10 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
         setIsLoading(false);
       } finally {
         abortControllerRef.current = null;
+        activeExecutionIdRef.current = null;
       }
     },
-    [adapter, currentSession?.sessionId, organizationId, setCurrentSession],
+    [adapter, currentSession?.sessionId, organizationId, setCurrentSession, consumeStream],
   );
 
   const retryLastMessage = useCallback(async () => {
@@ -646,6 +680,44 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
 
     await sendMessage(lastUserMessageRef.current);
   }, [sendMessage]);
+
+  /**
+   * Stop the in-flight response (the composer Stop button). Cancels the run
+   * server-side via the adapter (best-effort, fire-and-forget — the runner also
+   * cancels on disconnect), aborts the local stream immediately, and marks the
+   * streaming message as stopped by the user.
+   */
+  const stopStreaming = useCallback(() => {
+    if (!abortControllerRef.current) return;
+
+    const executionId = activeExecutionIdRef.current;
+    const sessionId = currentSession?.sessionId;
+    if (adapter.cancelRun && executionId && sessionId) {
+      void adapter.cancelRun({ sessionId, executionId }).catch(() => {
+        // Best-effort: the stream abort below disconnects the run, and the
+        // backend records the execution as canceled on disconnect.
+      });
+    }
+
+    abortControllerRef.current.abort();
+    abortControllerRef.current = null;
+    activeExecutionIdRef.current = null;
+
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.isStreaming
+          ? {
+              ...msg,
+              isStreaming: false,
+              stoppedByUser: true,
+              elapsedMs: msg.startedAt ? Date.now() - msg.startedAt : msg.elapsedMs,
+            }
+          : msg,
+      ),
+    );
+    setStreamingState({ isStreaming: false });
+    setIsLoading(false);
+  }, [adapter, currentSession?.sessionId]);
 
   const loadSession = useCallback(
     (session: SessionWithMessages) => {
@@ -696,9 +768,49 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
         };
       });
 
-      setMessages(cleanedMessages);
-      setStreamingState({ isStreaming: false });
-      setIsLoading(false);
+      if (session.activeExecutionId && typeof adapter.getExecutionStream === "function") {
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+        activeExecutionIdRef.current = session.activeExecutionId;
+
+        const assistantMessage = createAssistantMessage();
+
+        setMessages([...cleanedMessages, assistantMessage]);
+        setStreamingState({
+          isStreaming: true,
+          currentMessageId: assistantMessage.id,
+          executionId: session.activeExecutionId,
+        });
+        setIsLoading(true);
+
+        void adapter
+          .getExecutionStream(session.activeExecutionId, 0, { signal: controller.signal })
+          .then((stream) => {
+            return consumeStream(stream.getReader(), assistantMessage.id, controller.signal);
+          })
+          .catch((error) => {
+            if (error instanceof Error && error.name === "AbortError") {
+              return;
+            }
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMessage.id
+                  ? {
+                      ...msg,
+                      isStreaming: false,
+                      error: error instanceof Error ? error.message : "Unexpected error",
+                    }
+                  : msg,
+              ),
+            );
+            setStreamingState({ isStreaming: false });
+            setIsLoading(false);
+          });
+      } else {
+        setMessages(cleanedMessages);
+        setStreamingState({ isStreaming: false });
+        setIsLoading(false);
+      }
 
       if (allExtractedArtifacts.length > 0) {
         onArtifactsReadyRef.current?.(allExtractedArtifacts);
@@ -707,7 +819,7 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
         onArtifactsReadyRef.current?.(session.artifacts);
       }
     },
-    [setCurrentSession, setActiveContext],
+    [setCurrentSession, setActiveContext, adapter, consumeStream],
   );
 
   const canResolveToolApprovals = typeof adapter.resolveToolApproval === "function";
@@ -773,6 +885,7 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
       currentSessionTitle: currentSession?.title,
       adapter,
       sendMessage,
+      stopStreaming,
       clearMessages,
       retryLastMessage,
       loadSession,
@@ -787,6 +900,7 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
       currentSession?.title,
       adapter,
       sendMessage,
+      stopStreaming,
       clearMessages,
       retryLastMessage,
       loadSession,

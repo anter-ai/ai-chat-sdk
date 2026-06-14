@@ -1023,6 +1023,8 @@ import type { ChatPlugins } from "@anter/ai-chat-sdk";
 | `composerTopBanner`    | Above composer input                    | Host-controlled banner slot rendered above input  |
 | `composerBottomBanner` | Below composer input                    | Host-controlled banner slot rendered below input  |
 
+Banners render as cards **stacked behind the composer**: the composer keeps its full rounded corners and each banner tucks under it, peeking out above (top slot) or below (bottom slot) with its own rounded outer corners.
+
 ### Injecting a composer action
 
 Pass any React node as `composerActions`. Use the `ais-composer-footer-btn` CSS class if you want your button to match the built-in Tools button style.

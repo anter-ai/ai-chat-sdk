@@ -53,6 +53,20 @@ export interface UploadFileOptions {
   parseAsQuestionnaire?: boolean;
 }
 
+export interface SendMessageOptions {
+  /**
+   * Abort signal for the streaming request. Hosts should pass it to their
+   * fetch call so the Stop button can actually terminate the network stream.
+   */
+  signal?: AbortSignal;
+}
+
+export interface CancelRunInput {
+  sessionId: string;
+  /** Backend execution id, captured from the stream's `started` event. */
+  executionId: string;
+}
+
 export interface ResolveToolApprovalInput {
   sessionId: string;
   /** The approval being resolved — carries the backend routing context (executionId, toolCallId). */
@@ -68,7 +82,10 @@ export interface ChatAdapter {
   listSessions(params?: ListParams): Promise<SessionList>;
   updateSession(sessionId: string, patch: SessionPatch): Promise<void>;
   deleteSession(sessionId: string): Promise<void>;
-  sendMessage(payload: MessagePayload): Promise<ReadableStream<Uint8Array>>;
+  sendMessage(
+    payload: MessagePayload,
+    options?: SendMessageOptions,
+  ): Promise<ReadableStream<Uint8Array>>;
   loadSlashCommands?(): Promise<void>;
   uploadFile?(
     sessionId: string,
@@ -92,4 +109,17 @@ export interface ChatAdapter {
    * are surfaced on the card and the approval stays actionable.
    */
   resolveToolApproval?(input: ResolveToolApprovalInput): Promise<void>;
+  /**
+   * Cancel the running execution on the backend (the Stop button). When
+   * implemented, stopping a response cancels the server-side run — sub-agents
+   * halt and the execution is recorded as `canceled`. When absent, stopping
+   * only aborts the client stream; the server notices the disconnect and
+   * cancels on its own.
+   */
+  cancelRun?(input: CancelRunInput): Promise<void>;
+  getExecutionStream?(
+    executionId: string,
+    resumeFrom?: number,
+    options?: SendMessageOptions,
+  ): Promise<ReadableStream<Uint8Array>>;
 }

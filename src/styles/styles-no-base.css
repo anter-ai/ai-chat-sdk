@@ -1062,6 +1062,7 @@
 
 .ais-composer-container {
   position: relative;
+  z-index: 1; /* paints above the banner cards stacked behind it */
   display: flex;
   flex-direction: column;
   max-width: 800px;
@@ -1073,31 +1074,38 @@
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
 }
 
+/* Banners are slim strips stacked BEHIND the composer: each banner tucks under
+   the composer via a negative margin (extra padding on the hidden edge keeps the
+   content clear of the overlap). Only the outer corners are rounded — the sides
+   run straight into the composer so the two read as one stacked card. */
 .ais-composer-banner {
   width: 100%;
   max-width: 800px;
   box-sizing: border-box;
-  padding: 10px 12px;
+  padding: 7px 14px;
   border: 1px solid var(--chat-border);
-  border-radius: 10px;
   margin: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  font-size: 13.5px;
+  font-size: 13px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
   color: var(--chat-muted);
 }
 
 .ais-composer-banner--top {
-  border-bottom: none;
   border-radius: 20px 20px 0 0;
+  margin-bottom: -12px;
+  padding-bottom: calc(7px + 12px);
+  animation: ais-composer-banner-slide-up 200ms ease;
 }
 
 .ais-composer-banner--bottom {
-  border-top: none;
   border-radius: 0 0 20px 20px;
+  margin-top: -12px;
+  padding-top: calc(7px + 12px);
+  animation: ais-composer-banner-slide-down 200ms ease;
 }
 
 .ais-composer-banner__title-wrap {
@@ -1118,6 +1126,17 @@
   from {
     opacity: 0;
     transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ais-composer-banner-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
   }
   to {
     opacity: 1;

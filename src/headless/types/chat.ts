@@ -88,6 +88,8 @@ export interface ChatMessage {
   timestamp: Date;
   sources?: MessageSource[];
   isStreaming?: boolean;
+  /** True when the user stopped this response mid-stream (renders a "Stopped" marker). */
+  stoppedByUser?: boolean;
   error?: string;
   steps?: AgentStepEvent[];
   plan?: AgentPlanPhase[];
@@ -105,6 +107,8 @@ export interface ChatMessage {
 export interface StreamingState {
   isStreaming: boolean;
   currentMessageId?: string;
+  /** Backend execution id of the in-flight run, from the stream's `started` event. */
+  executionId?: string;
   error?: string;
 }
 

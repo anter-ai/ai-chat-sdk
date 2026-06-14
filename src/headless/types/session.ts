@@ -8,6 +8,7 @@ export interface Session {
   status?: "active" | "archived";
   contextId?: string;
   model?: string;
+  activeExecutionId?: string | null;
 }
 
 export interface SessionWithMessages extends Session {

@@ -1,14 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  LayoutDashboard,
-  MessageCircle,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Plus,
-  Search,
-} from "lucide-react";
+import { FileText, MessageCircle, PanelLeftClose, PanelLeftOpen, Plus, Search } from "lucide-react";
 import { useChatContext } from "../../headless/context/chat-provider";
 import { useConversationHistory } from "../../headless/hooks/use-conversation-history";
 import { useChat } from "../../headless/hooks/use-chat";
@@ -29,6 +22,7 @@ interface ChatSidebarProps {
    *  the sidebar is automatically collapsed. The user can still re-open it
    *  afterwards — this is a one-time nudge, not a permanent lock. REQ-02/04 */
   artifactPanelOpen?: boolean;
+  onToggleArtifacts?: () => void;
 }
 
 export function ChatSidebar({
@@ -39,6 +33,7 @@ export function ChatSidebar({
   activeView = "chat",
   onViewChange,
   artifactPanelOpen,
+  onToggleArtifacts,
 }: ChatSidebarProps) {
   const { adapter, organizationId, currentSession, setCurrentSession } = useChatContext();
   const { sessions, isLoading, refresh, deleteSession } = useConversationHistory();
@@ -155,15 +150,16 @@ export function ChatSidebar({
         action: () => onViewChange?.("recents"),
       },
       {
-        id: "back-to-dashboard",
-        label: "Platform",
-        icon: LayoutDashboard,
+        id: "artifacts",
+        label: "Artifacts",
+        icon: FileText,
+        active: artifactPanelOpen,
         action: () => {
-          window.location.href = `/${organizationId}`;
+          onToggleArtifacts?.();
         },
       },
     ],
-    [onNewConversation, onViewChange, activeView, organizationId],
+    [onNewConversation, onViewChange, activeView, onToggleArtifacts, artifactPanelOpen],
   );
 
   function renderRailButton(item: (typeof topNavItems)[number]) {

@@ -326,6 +326,11 @@ function ChatShellContent({
         onToggle={() => setSidebarOpen((prev) => !prev)}
         onViewChange={handleViewChange}
         artifactPanelOpen={artifactsCtx.panelState.isOpen}
+        onToggleArtifacts={() =>
+          artifactsCtx.panelState.isOpen
+            ? artifactsCtx.closePanel()
+            : artifactsCtx.openArtifact(Array.from(artifactsCtx.artifacts.keys())[0] ?? "")
+        }
       />
 
       <ResizablePanelGroup

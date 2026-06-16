@@ -241,11 +241,17 @@
   text-overflow: ellipsis;
 }
 
-.ais-shell-header-files-btn {
+.ais-shell-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.ais-shell-header-action-btn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin-left: auto;
   border: none;
   background: transparent;
   color: var(--message-ai-text);
@@ -262,12 +268,18 @@
     background-color 0.15s;
 }
 
-.ais-shell-header-files-btn:hover {
+.ais-shell-header-files-btn {
+}
+
+.ais-shell-header-artifacts-btn {
+}
+
+.ais-shell-header-action-btn:hover {
   opacity: 1;
   background: color-mix(in oklab, var(--chat-accent) 10%, transparent);
 }
 
-.ais-shell-header-files-btn.is-active {
+.ais-shell-header-action-btn.is-active {
   opacity: 1;
   color: var(--chat-accent);
   background: color-mix(in oklab, var(--chat-accent) 12%, transparent);
@@ -798,7 +810,7 @@
   display: none;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .ais-shell-header {
     min-height: 44px;
     padding: 0 12px;
@@ -1082,14 +1094,14 @@
   width: 100%;
   max-width: 800px;
   box-sizing: border-box;
-  padding: 7px 14px;
+  padding: 4px 10px;
   border: 1px solid var(--chat-border);
   margin: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  font-size: 13px;
+  font-size: 11px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
   color: var(--chat-muted);
 }
@@ -1097,14 +1109,14 @@
 .ais-composer-banner--top {
   border-radius: 20px 20px 0 0;
   margin-bottom: -12px;
-  padding-bottom: calc(7px + 12px);
+  padding-bottom: calc(4px + 12px);
   animation: ais-composer-banner-slide-up 200ms ease;
 }
 
 .ais-composer-banner--bottom {
   border-radius: 0 0 20px 20px;
   margin-top: -12px;
-  padding-top: calc(7px + 12px);
+  padding-top: calc(4px + 12px);
   animation: ais-composer-banner-slide-down 200ms ease;
 }
 
@@ -1153,8 +1165,8 @@
 }
 
 .ais-composer-banner-icon-svg {
-  width: 15px;
-  height: 15px;
+  width: 13px;
+  height: 13px;
   color: inherit;
 }
 
@@ -1175,8 +1187,8 @@
 }
 
 .ais-composer-banner__action-btn {
-  padding: 4px 10px;
-  font-size: 12px;
+  padding: 2px 6px;
+  font-size: 10px;
   line-height: 1.2;
   border-radius: var(--chat-radius-sm);
   border: none;
@@ -1195,14 +1207,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 22px;
-  height: 22px;
+  min-width: 18px;
+  height: 18px;
   border-radius: var(--chat-radius-sm);
   border: none;
   background: transparent;
   color: inherit;
   cursor: pointer;
-  padding: 2px 6px;
+  padding: 0;
   line-height: 1;
 }
 
@@ -1345,6 +1357,28 @@
   border-radius: 6px;
   line-height: 1.4;
   pointer-events: none;
+}
+
+/* Stop button: replaces the voice button while a response is streaming */
+.ais-composer-stop-btn {
+  border: 1.5px solid color-mix(in oklab, var(--message-ai-text) 25%, transparent);
+  color: var(--message-ai-text);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+}
+
+.ais-composer-stop-btn:hover {
+  border-color: color-mix(in oklab, var(--message-ai-text) 55%, transparent);
+  background: color-mix(in oklab, var(--message-ai-text) 8%, transparent);
+}
+
+/* "You stopped this response" marker on a user-stopped message */
+.ais-message-stopped {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-style: italic;
+  color: color-mix(in oklab, var(--message-ai-text) 55%, transparent);
 }
 
 /* RFP Mode toggle pill */
@@ -4410,7 +4444,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .ais-sidebar {
     position: fixed;
     left: 0;

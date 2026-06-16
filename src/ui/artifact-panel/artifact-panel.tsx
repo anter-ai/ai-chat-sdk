@@ -5,6 +5,7 @@ import * as Tabs from "@radix-ui/react-tabs";
 import { FileText, X, FileDown, Share2, Copy, Check, Code2, AlignLeft } from "lucide-react";
 import type { UseArtifactsReturn } from "../../headless/hooks/use-artifacts";
 import { useChatContext } from "../../headless/context/chat-provider";
+import { getArtifactRegistry } from "../../extensions/artifact-registry";
 import { ArtifactPreview } from "./artifact-preview";
 
 const TYPE_META: Record<string, { label: string; color: string }> = {
@@ -13,6 +14,13 @@ const TYPE_META: Record<string, { label: string; color: string }> = {
   code: { label: "Code", color: "#7C3AED" },
   table: { label: "Data Table", color: "#059669" },
   docx: { label: "Word Document", color: "#1D6F42" },
+};
+
+// Icons for tabs declared by a host renderer (which supplies value + label only).
+const TAB_ICON: Record<string, React.ReactNode> = {
+  preview: <AlignLeft size={13} />,
+  source: <Code2 size={13} />,
+  export: <FileDown size={13} />,
 };
 
 const TABS_BY_TYPE: Record<
@@ -90,14 +98,32 @@ export function ArtifactPanel({ artifactsCtx, onExportArtifact, className }: Art
     (activeArtifact.previewContent && activeArtifact.previewContent.trim()) ||
     (activeArtifact.content && activeArtifact.content.trim()),
   );
-  const tabsByType = (TABS_BY_TYPE[activeArtifact.type] ?? TABS_BY_TYPE.markdown)!;
-  const tabs =
-    activeArtifact.type === "docx" && !hasPreview
-      ? tabsByType.filter((tab) => tab.value !== "preview")
-      : tabsByType;
-  const meta = TYPE_META[activeArtifact.type] ?? {
-    label: activeArtifact.type.toUpperCase(),
-    color: "#64748B",
+
+  const registryConfig = getArtifactRegistry().get(activeArtifact.type);
+
+  const tabs: Array<{
+    value: "preview" | "source" | "export";
+    label: string;
+    icon: React.ReactNode;
+  }> = registryConfig?.tabs
+    ? registryConfig.tabs.map((tab) => ({
+        value: tab.value,
+        label: tab.label,
+        icon: TAB_ICON[tab.value] ?? <AlignLeft size={13} />,
+      }))
+    : (() => {
+        const tabsByType = (TABS_BY_TYPE[activeArtifact.type] ?? TABS_BY_TYPE.markdown)!;
+        return activeArtifact.type === "docx" && !hasPreview
+          ? tabsByType.filter((tab) => tab.value !== "preview")
+          : tabsByType;
+      })();
+
+  const meta = {
+    label:
+      registryConfig?.label ??
+      TYPE_META[activeArtifact.type]?.label ??
+      activeArtifact.type.toUpperCase(),
+    color: registryConfig?.color ?? TYPE_META[activeArtifact.type]?.color ?? "#64748B",
   };
 
   const previewText = activeArtifact.previewContent ?? activeArtifact.content ?? "";

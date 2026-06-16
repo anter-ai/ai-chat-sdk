@@ -327,6 +327,13 @@ function ChatShellContent({
             <ChatShellHeader
               onOpenMenu={() => setSidebarOpen(true)}
               sessionTitle={sessionTitle}
+              artifactsCount={artifactsCtx.artifacts.size}
+              artifactsPanelOpen={artifactsCtx.panelState.isOpen}
+              onToggleArtifacts={() =>
+                artifactsCtx.panelState.isOpen
+                  ? artifactsCtx.closePanel()
+                  : artifactsCtx.openArtifact(Array.from(artifactsCtx.artifacts.keys())[0] ?? "")
+              }
               filesCount={enableFileUpload ? filesCtx.files.length : 0}
               onToggleFiles={
                 enableFileUpload

@@ -16,6 +16,7 @@ import { RecentSessionItem } from "../shared/recent-session-item";
 import { ConfirmDialog } from "../shared/confirm-dialog";
 
 export type ChatView = "chat" | "recents";
+const SIDEBAR_OVERLAY_BREAKPOINT_PX = 1024;
 
 interface ChatSidebarProps {
   onNewConversation?: () => void;
@@ -111,10 +112,17 @@ export function ChatSidebar({
     }
 
     // Auto-collapse on smaller screens on mount
-    if (window.innerWidth < 1024) {
+    if (window.innerWidth <= SIDEBAR_OVERLAY_BREAKPOINT_PX) {
       setCollapsed(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (window.innerWidth <= SIDEBAR_OVERLAY_BREAKPOINT_PX) {
+      setCollapsed(false);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     window.localStorage.setItem("ais-sidebar-collapsed", collapsed ? "1" : "0");
@@ -191,7 +199,7 @@ export function ChatSidebar({
         <button
           className="ais-sidebar-toggle"
           onClick={() => {
-            if (window.innerWidth < 768 && onToggle) {
+            if (window.innerWidth <= SIDEBAR_OVERLAY_BREAKPOINT_PX && onToggle) {
               onToggle();
             } else {
               setCollapsed((prev) => !prev);

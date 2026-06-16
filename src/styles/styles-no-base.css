@@ -810,7 +810,7 @@
   display: none;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .ais-shell-header {
     min-height: 44px;
     padding: 0 12px;
@@ -4422,7 +4422,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .ais-sidebar {
     position: fixed;
     left: 0;

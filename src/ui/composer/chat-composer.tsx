@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Mic, Plus, SlidersHorizontal } from "lucide-react";
+import { Mic, Plus, SlidersHorizontal, Square } from "lucide-react";
 import { useChatContext } from "../../headless/context/chat-provider";
 import { SlashCommandMenu } from "./slash-command-menu";
 import { ComposerPlusMenu } from "./composer-plus-menu";
@@ -22,10 +22,12 @@ interface ChatComposerProps {
     extraContextVariables?: Record<string, string>,
   ) => void;
   isStreaming?: boolean;
+  /** Stops the in-flight response; renders the Stop button while streaming. */
+  onStop?: () => void;
   className?: string;
 }
 
-export function ChatComposer({ onSendMessage, isStreaming, className }: ChatComposerProps) {
+export function ChatComposer({ onSendMessage, isStreaming, onStop, className }: ChatComposerProps) {
   const {
     adapter,
     config,
@@ -325,15 +327,28 @@ export function ChatComposer({ onSendMessage, isStreaming, className }: ChatComp
             {plugins?.composerActions}
           </div>
           <div className="ais-composer-footer-right">
-            <button
-              className="ais-composer-footer-btn ais-composer-footer-btn--soon"
-              type="button"
-              aria-label="Voice input — coming soon"
-              title="Voice input — coming soon"
-              disabled
-            >
-              <Mic size={16} />
-            </button>
+            {isStreaming && onStop ? (
+              <button
+                className="ais-composer-footer-btn ais-composer-stop-btn"
+                type="button"
+                aria-label="Stop response"
+                title="Stop response"
+                onClick={onStop}
+              >
+                <Square size={14} fill="currentColor" />
+                <span>Stop</span>
+              </button>
+            ) : (
+              <button
+                className="ais-composer-footer-btn ais-composer-footer-btn--soon"
+                type="button"
+                aria-label="Voice input — coming soon"
+                title="Voice input — coming soon"
+                disabled
+              >
+                <Mic size={16} />
+              </button>
+            )}
           </div>
         </div>
       </div>

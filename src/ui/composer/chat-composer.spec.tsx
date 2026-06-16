@@ -11,9 +11,11 @@ jest.mock("../../headless/context/chat-provider", () => ({
 
 describe("ChatComposer", () => {
   const mockOnSendMessage = jest.fn();
+  const mockOnStop = jest.fn();
   const mockConfig = { enableSlashCommands: true };
 
   beforeEach(() => {
+    mockOnStop.mockReset();
     (useChatContext as jest.Mock).mockReturnValue({
       config: mockConfig,
       strings: defaultStrings,
@@ -93,5 +95,13 @@ describe("ChatComposer", () => {
 
     fireEvent.keyDown(textarea, { key: "Escape", code: "Escape" });
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("renders Stop button while streaming and calls onStop", () => {
+    render(<ChatComposer onSendMessage={mockOnSendMessage} isStreaming onStop={mockOnStop} />);
+    const stopButton = screen.getByRole("button", { name: "Stop response" });
+    expect(stopButton).toBeInTheDocument();
+    fireEvent.click(stopButton);
+    expect(mockOnStop).toHaveBeenCalledTimes(1);
   });
 });

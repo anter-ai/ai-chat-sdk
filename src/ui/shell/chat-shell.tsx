@@ -122,6 +122,7 @@ function ChatShellContent({
 }: ChatShellContentProps) {
   const {
     sendMessage,
+    stopStreaming,
     isStreaming,
     clearMessages,
     loadSession,
@@ -398,6 +399,7 @@ function ChatShellContent({
                       />
                       <ChatComposer
                         isStreaming={isStreaming}
+                        onStop={stopStreaming}
                         onSendMessage={(
                           message,
                           attachedFileIds,

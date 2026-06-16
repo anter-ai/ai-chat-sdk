@@ -1359,6 +1359,28 @@
   pointer-events: none;
 }
 
+/* Stop button: replaces the voice button while a response is streaming */
+.ais-composer-stop-btn {
+  border: 1.5px solid color-mix(in oklab, var(--message-ai-text) 25%, transparent);
+  color: var(--message-ai-text);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+}
+
+.ais-composer-stop-btn:hover {
+  border-color: color-mix(in oklab, var(--message-ai-text) 55%, transparent);
+  background: color-mix(in oklab, var(--message-ai-text) 8%, transparent);
+}
+
+/* "You stopped this response" marker on a user-stopped message */
+.ais-message-stopped {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-style: italic;
+  color: color-mix(in oklab, var(--message-ai-text) 55%, transparent);
+}
+
 /* RFP Mode toggle pill */
 .ais-composer-rfp-btn {
   border: 1.5px solid color-mix(in oklab, var(--message-ai-text) 25%, transparent);

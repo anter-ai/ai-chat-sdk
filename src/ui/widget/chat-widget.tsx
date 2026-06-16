@@ -83,7 +83,8 @@ function ChatWidgetContent({
 }: ChatWidgetProps) {
   const [open, setOpen] = useState(initialOpen);
   const { config, orgLabel } = useChatContext();
-  const { sendMessage, isStreaming, currentSessionId, clearMessages, messages } = useChat();
+  const { sendMessage, stopStreaming, isStreaming, currentSessionId, clearMessages, messages } =
+    useChat();
   const artifactsCtx = useArtifacts();
   const sourcesCtx = useSources();
   const filesCtx = useSessionFiles();
@@ -210,6 +211,7 @@ function ChatWidgetContent({
             </div>
             <ChatComposer
               isStreaming={isStreaming}
+              onStop={stopStreaming}
               onSendMessage={(message, attachedFileIds, sessionId, extraContextVariables) => {
                 void sendMessage(message, attachedFileIds, sessionId, extraContextVariables);
               }}

@@ -1,14 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  LayoutDashboard,
-  MessageCircle,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Plus,
-  Search,
-} from "lucide-react";
+import { FileText, MessageCircle, PanelLeftClose, PanelLeftOpen, Plus, Search } from "lucide-react";
 import { useChatContext } from "../../headless/context/chat-provider";
 import { useConversationHistory } from "../../headless/hooks/use-conversation-history";
 import { useChat } from "../../headless/hooks/use-chat";
@@ -16,6 +9,7 @@ import { RecentSessionItem } from "../shared/recent-session-item";
 import { ConfirmDialog } from "../shared/confirm-dialog";
 
 export type ChatView = "chat" | "recents";
+const SIDEBAR_OVERLAY_BREAKPOINT_PX = 1024;
 
 interface ChatSidebarProps {
   onNewConversation?: () => void;
@@ -28,6 +22,7 @@ interface ChatSidebarProps {
    *  the sidebar is automatically collapsed. The user can still re-open it
    *  afterwards — this is a one-time nudge, not a permanent lock. REQ-02/04 */
   artifactPanelOpen?: boolean;
+  onToggleArtifacts?: () => void;
 }
 
 export function ChatSidebar({
@@ -38,6 +33,7 @@ export function ChatSidebar({
   activeView = "chat",
   onViewChange,
   artifactPanelOpen,
+  onToggleArtifacts,
 }: ChatSidebarProps) {
   const { adapter, organizationId, currentSession, setCurrentSession } = useChatContext();
   const { sessions, isLoading, refresh, deleteSession } = useConversationHistory();
@@ -111,10 +107,17 @@ export function ChatSidebar({
     }
 
     // Auto-collapse on smaller screens on mount
-    if (window.innerWidth < 1024) {
+    if (window.innerWidth <= SIDEBAR_OVERLAY_BREAKPOINT_PX) {
       setCollapsed(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (window.innerWidth <= SIDEBAR_OVERLAY_BREAKPOINT_PX) {
+      setCollapsed(false);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     window.localStorage.setItem("ais-sidebar-collapsed", collapsed ? "1" : "0");
@@ -147,15 +150,16 @@ export function ChatSidebar({
         action: () => onViewChange?.("recents"),
       },
       {
-        id: "back-to-dashboard",
-        label: "Platform",
-        icon: LayoutDashboard,
+        id: "artifacts",
+        label: "Artifacts",
+        icon: FileText,
+        active: artifactPanelOpen,
         action: () => {
-          window.location.href = `/${organizationId}`;
+          onToggleArtifacts?.();
         },
       },
     ],
-    [onNewConversation, onViewChange, activeView, organizationId],
+    [onNewConversation, onViewChange, activeView, onToggleArtifacts, artifactPanelOpen],
   );
 
   function renderRailButton(item: (typeof topNavItems)[number]) {
@@ -191,7 +195,7 @@ export function ChatSidebar({
         <button
           className="ais-sidebar-toggle"
           onClick={() => {
-            if (window.innerWidth < 768 && onToggle) {
+            if (window.innerWidth <= SIDEBAR_OVERLAY_BREAKPOINT_PX && onToggle) {
               onToggle();
             } else {
               setCollapsed((prev) => !prev);

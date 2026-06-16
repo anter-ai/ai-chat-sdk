@@ -30,6 +30,8 @@ import {
 } from "../primitives/resizable-handle";
 import type { RecordTag } from "../../headless/utils/record-utils";
 
+const SIDEBAR_OVERLAY_BREAKPOINT_PX = 1024;
+
 interface ChatShellProps {
   /** Called when the user triggers the "save artifact" action. When omitted, the button is hidden. */
   onExportArtifact?: (artifactId: string) => Promise<void>;
@@ -120,6 +122,7 @@ function ChatShellContent({
 }: ChatShellContentProps) {
   const {
     sendMessage,
+    stopStreaming,
     isStreaming,
     clearMessages,
     loadSession,
@@ -166,6 +169,9 @@ function ChatShellContent({
   }, []); // handleNewConversation and handleViewChange are stable refs
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isOverlayViewport, setIsOverlayViewport] = useState<boolean>(() =>
+    typeof window !== "undefined" ? window.innerWidth <= SIDEBAR_OVERLAY_BREAKPOINT_PX : false,
+  );
   const didLoadInitialRef = React.useRef(false);
   React.useEffect(() => {
     if (!initialSessionId || didLoadInitialRef.current) return;
@@ -187,6 +193,20 @@ function ChatShellContent({
     prevSessionIdRef.current = currentSessionId;
     onSessionChange?.(currentSessionId);
   }, [currentSessionId, onSessionChange]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onResize = () => {
+      const nextIsOverlay = window.innerWidth <= SIDEBAR_OVERLAY_BREAKPOINT_PX;
+      setIsOverlayViewport(nextIsOverlay);
+      if (!nextIsOverlay) {
+        setSidebarOpen(false);
+      }
+    };
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const embedPanelIsOpen =
     !!recordPanel || (config.enableArtifacts && artifactsCtx.panelState.isOpen);
@@ -302,11 +322,16 @@ function ChatShellContent({
     <div ref={shellRef} className={`ais-chat-shell ${className ?? ""}`} style={shellStyle}>
       <ChatSidebar
         activeView={activeView}
-        isOpen={sidebarOpen}
+        isOpen={isOverlayViewport ? sidebarOpen : false}
         onNewConversation={handleNewConversation}
         onToggle={() => setSidebarOpen((prev) => !prev)}
         onViewChange={handleViewChange}
         artifactPanelOpen={artifactsCtx.panelState.isOpen}
+        onToggleArtifacts={() =>
+          artifactsCtx.panelState.isOpen
+            ? artifactsCtx.closePanel()
+            : artifactsCtx.openArtifact(Array.from(artifactsCtx.artifacts.keys())[0] ?? "")
+        }
       />
 
       <ResizablePanelGroup
@@ -327,6 +352,13 @@ function ChatShellContent({
             <ChatShellHeader
               onOpenMenu={() => setSidebarOpen(true)}
               sessionTitle={sessionTitle}
+              artifactsCount={artifactsCtx.artifacts.size}
+              artifactsPanelOpen={artifactsCtx.panelState.isOpen}
+              onToggleArtifacts={() =>
+                artifactsCtx.panelState.isOpen
+                  ? artifactsCtx.closePanel()
+                  : artifactsCtx.openArtifact(Array.from(artifactsCtx.artifacts.keys())[0] ?? "")
+              }
               filesCount={enableFileUpload ? filesCtx.files.length : 0}
               onToggleFiles={
                 enableFileUpload
@@ -367,6 +399,7 @@ function ChatShellContent({
                       />
                       <ChatComposer
                         isStreaming={isStreaming}
+                        onStop={stopStreaming}
                         onSendMessage={(
                           message,
                           attachedFileIds,
@@ -425,7 +458,7 @@ function ChatShellContent({
         )}
       </ResizablePanelGroup>
 
-      {sidebarOpen && (
+      {isOverlayViewport && sidebarOpen && (
         <div className="ais-mobile-sidebar-backdrop" onClick={() => setSidebarOpen(false)} />
       )}
 

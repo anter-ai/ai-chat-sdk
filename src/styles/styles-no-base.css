@@ -1931,6 +1931,48 @@
   transform: rotate(90deg);
 }
 
+.ais-ap-empty {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 28px 24px;
+  background: var(--background, var(--ais-ap-surface));
+}
+
+.ais-ap-empty-inner {
+  width: 100%;
+  max-width: 420px;
+  padding: 18px 20px;
+  border-radius: 10px;
+  border: 1px solid var(--ais-ap-border);
+  background: color-mix(in oklab, var(--ais-ap-surface) 92%, var(--ais-ap-accent) 4%);
+}
+
+.ais-ap-empty-title {
+  margin: 0 0 8px;
+  font-family: var(--font-sans, "Segoe UI", system-ui, sans-serif);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ais-ap-text);
+}
+
+.ais-ap-empty-body {
+  margin: 0;
+  font-family: var(--font-sans, "Segoe UI", system-ui, sans-serif);
+  font-size: 13px;
+  line-height: 1.55;
+  color: color-mix(in oklab, var(--ais-ap-text) 78%, var(--ais-ap-muted) 22%);
+}
+
+.ais-ap-empty-note {
+  margin: 10px 0 0;
+  font-family: var(--font-sans, "Segoe UI", system-ui, sans-serif);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ais-ap-muted);
+}
+
 /* Tab bar */
 .ais-ap-tabs-root {
   flex: 1;

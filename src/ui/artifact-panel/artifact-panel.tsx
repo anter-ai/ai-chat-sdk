@@ -64,7 +64,7 @@ interface ArtifactPanelProps {
 
 export function ArtifactPanel({ artifactsCtx, onExportArtifact, className }: ArtifactPanelProps) {
   const { strings } = useChatContext();
-  const { activeArtifact, panelState, closePanel, setActiveTab } = artifactsCtx;
+  const { artifacts, activeArtifact, panelState, closePanel, setActiveTab } = artifactsCtx;
   const [copied, setCopied] = useState(false);
 
   const handleCopySource = useCallback(() => {
@@ -92,7 +92,51 @@ export function ArtifactPanel({ artifactsCtx, onExportArtifact, className }: Art
     }
   }, [activeArtifact]);
 
-  if (!panelState.isOpen || !activeArtifact) return null;
+  if (!panelState.isOpen) return null;
+
+  if (!activeArtifact) {
+    const hasAnyArtifacts = artifacts.size > 0;
+    return (
+      <aside className={`ais-artifact-panel ais-animate-artifact-panel-in ${className ?? ""}`}>
+        <div className="ais-ap-accent-bar" />
+        <header className="ais-ap-header">
+          <div className="ais-ap-header-icon">
+            <FileText size={15} />
+          </div>
+          <div className="ais-ap-header-body">
+            <div className="ais-ap-meta-row">
+              <span className="ais-ap-type-badge">Artifacts</span>
+            </div>
+            <h3 className="ais-ap-title">No artifact selected</h3>
+          </div>
+          <button
+            aria-label={strings.artifactPanelClose || "Close"}
+            className="ais-ap-close"
+            onClick={closePanel}
+            type="button"
+          >
+            <X size={15} />
+          </button>
+        </header>
+
+        <div className="ais-ap-empty">
+          <div className="ais-ap-empty-inner">
+            <p className="ais-ap-empty-title">Artifacts will appear here.</p>
+            <p className="ais-ap-empty-body">
+              When the agent generates documents or structured outputs, you can review and export
+              them from this panel.
+            </p>
+            {hasAnyArtifacts && (
+              <p className="ais-ap-empty-note">
+                We found generated artifacts in this session. Open an artifact chip in the chat to
+                preview it here.
+              </p>
+            )}
+          </div>
+        </div>
+      </aside>
+    );
+  }
 
   const hasPreview = Boolean(
     (activeArtifact.previewContent && activeArtifact.previewContent.trim()) ||

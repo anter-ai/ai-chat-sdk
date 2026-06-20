@@ -19,6 +19,9 @@ jest.mock("../../headless/hooks/use-chat", () => ({
 
 jest.mock("../../headless/hooks/use-artifacts", () => ({
   useArtifacts: () => ({
+    // The real hook always returns `artifacts` as a Map; ChatShellContent reads
+    // `artifacts.size` for the header count, so the mock must include it.
+    artifacts: new Map(),
     registerArtifacts: jest.fn(),
     panelState: { isOpen: false },
   }),

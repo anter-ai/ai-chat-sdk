@@ -20,7 +20,7 @@ import type {
   StreamingState,
   ToolApproval,
 } from "../types/chat";
-import type { SessionWithMessages } from "../types/session";
+import type { ResumeState, SessionWithMessages } from "../types/session";
 import type { ChatAdapter } from "../types/adapter";
 import type { Artifact } from "../types/artifact";
 import {
@@ -119,6 +119,14 @@ export interface UseChatReturn {
   stopStreaming: () => void;
   clearMessages: () => void;
   retryLastMessage: () => Promise<void>;
+  /**
+   * Resume affordance for the last crashed run, from the loaded session's backend hint:
+   * `resumable` → Resume (continue from checkpoint), `retry` → Retry (re-send last turn),
+   * `live`/`null` → no manual control. Cleared when any new run starts.
+   */
+  resumeState: ResumeState;
+  /** Run the Resume/Retry action (resume-from-checkpoint, with a retry fallback). */
+  resumeRun: () => Promise<void>;
   loadSession: (session: SessionWithMessages) => void;
   /** Whether the adapter can resolve tool approvals (drives card actionability). */
   canResolveToolApprovals: boolean;
@@ -152,6 +160,11 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
     isStreaming: false,
   });
   const [isLoading, setIsLoading] = useState(false);
+  // Resume affordance for the composer: which control (if any) to offer for the last
+  // crashed run, and the execution id a "resumable" run continues from. Seeded by
+  // loadSession from the backend hint; cleared the moment any new run starts.
+  const [resumeState, setResumeState] = useState<ResumeState>(null);
+  const resumableExecutionIdRef = useRef<string | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   // Backend execution id of the in-flight run, captured from the stream's
@@ -188,319 +201,406 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
       assistantMessageId: string,
       signal: AbortSignal,
     ) => {
-      const decoder = new TextDecoder();
-      const parser = createParser({
-        onEvent(event: EventSourceMessage) {
-          if (event.data === "[DONE]") {
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === assistantMessageId
-                  ? {
-                      ...msg,
-                      isStreaming: false,
-                      elapsedMs: msg.startedAt ? Date.now() - msg.startedAt : msg.elapsedMs,
-                    }
-                  : msg,
-              ),
-            );
-            setStreamingState({ isStreaming: false });
-            setIsLoading(false);
-            return;
-          }
+      // A run can outlive a single HTTP connection: a proxy idle-timeout during a long
+      // approval wait drops the socket, but the run detaches server-side and keeps
+      // persisting (see anter-adapter / agent-runner Phase 1). If a stream ends WITHOUT
+      // a terminal (completion / [DONE] / error) frame, we reconnect to the replay
+      // endpoint and rebuild this bubble from the persisted tail. Bounded so a genuinely
+      // stuck run can't loop forever.
+      const MAX_RECONNECTS = 5;
+      let currentReader = reader;
+      let reconnectAttempt = 0;
 
-          let parsed: ParsedEvent;
-          try {
-            parsed = JSON.parse(event.data) as ParsedEvent;
-          } catch {
-            return;
-          }
+      const settleStopped = (): void => {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMessageId && msg.isStreaming
+              ? {
+                  ...msg,
+                  isStreaming: false,
+                  elapsedMs: msg.startedAt ? Date.now() - msg.startedAt : msg.elapsedMs,
+                }
+              : msg,
+          ),
+        );
+        setStreamingState({ isStreaming: false });
+        setIsLoading(false);
+      };
 
-          const outerEventType = resolveEventType(event.event, parsed);
+      // The connection dropped and we couldn't reattach (no execution id / no replay
+      // adapter, the reattach failed, or reconnect attempts were exhausted). Settle the
+      // bubble with an error so the message's inline Retry control surfaces — the user
+      // can re-run the turn rather than being stuck staring at a frozen "Thinking…".
+      const settleDropped = (): void => {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMessageId && msg.isStreaming
+              ? {
+                  ...msg,
+                  isStreaming: false,
+                  error:
+                    msg.error ??
+                    "The connection was lost before the response finished. Retry to continue.",
+                  elapsedMs: msg.startedAt ? Date.now() - msg.startedAt : msg.elapsedMs,
+                }
+              : msg,
+          ),
+        );
+        setStreamingState({ isStreaming: false });
+        setIsLoading(false);
+      };
 
-          // The runner's `started` frame carries the backend execution id —
-          // captured so Stop can cancel the run server-side.
-          if (outerEventType === "started") {
-            const startedExecutionId = (parsed as Record<string, unknown>)["executionId"];
-            if (typeof startedExecutionId === "string" && startedExecutionId) {
-              activeExecutionIdRef.current = startedExecutionId;
-              setStreamingState((prev) =>
-                prev.isStreaming ? { ...prev, executionId: startedExecutionId } : prev,
+      // Each iteration consumes one connection; on a non-terminal end we reattach below.
+      for (;;) {
+        const decoder = new TextDecoder();
+        // Set by any terminal frame so the loop knows the run actually ended (vs. a
+        // dropped connection) and must not reconnect.
+        let sawTerminal = false;
+        const parser = createParser({
+          onEvent(event: EventSourceMessage) {
+            if (event.data === "[DONE]") {
+              sawTerminal = true;
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === assistantMessageId
+                    ? {
+                        ...msg,
+                        isStreaming: false,
+                        elapsedMs: msg.startedAt ? Date.now() - msg.startedAt : msg.elapsedMs,
+                      }
+                    : msg,
+                ),
               );
-            }
-          }
-
-          // The agent-runner emits control events (thought/tool_call/tool_result/status and the
-          // multi-agent handoff frames) that must surface as step chips, never as message text.
-          const isRunnerControl = isRunnerControlEvent(outerEventType);
-          const isCompletionSignal =
-            outerEventType === "done" ||
-            parsed.isComplete === true ||
-            parsed.type === "complete" ||
-            isRunnerCompletion(outerEventType, parsed);
-
-          let runnerStep: AgentStepEvent | null = null;
-          if (isRunnerControl) {
-            runnerStep = runnerEventToStep(outerEventType, parsed, stepSeqRef.current);
-            if (runnerStep && runnerStepConsumesSeq(outerEventType)) {
-              stepSeqRef.current += 1;
-            }
-          }
-
-          if (outerEventType === "artifact" && parsed.payload) {
-            onArtifactsReadyRef.current?.([parsed.payload as unknown as Artifact]);
-          }
-
-          // context_resolved: the server resolved a required context value.
-          // Accept both "contextId" (new) and "frameworkId" (legacy backend compat).
-          if (outerEventType === "context_resolved" && parsed.payload) {
-            const { key, value } = parsed.payload as {
-              key?: string;
-              value?: string;
-            };
-            if ((key === "contextId" || key === "frameworkId") && typeof value === "string") {
-              setActiveContext(value);
-            }
-          }
-
-          const rawParsedContent = extractContent(parsed);
-          if (rawParsedContent && outerEventType !== "artifact" && !isRunnerControl) {
-            accumContentRef.current += rawParsedContent;
-          }
-
-          let frontendArtifacts: Artifact[] = [];
-          const originalAccumContent = accumContentRef.current;
-          let cleanedAccumContent = originalAccumContent;
-          let frontendCitations: MessageSource[] = [];
-          let frontendRecords: RecordTag[] = [];
-          let frontendSuggestions: string[] = [];
-          if (isCompletionSignal) {
-            const extracted = extractArtifactsFromContent(originalAccumContent, assistantMessageId);
-            if (extracted.artifacts.length > 0) {
-              frontendArtifacts = extracted.artifacts;
-              cleanedAccumContent = extracted.cleanedContent;
-              onArtifactsReadyRef.current?.(frontendArtifacts);
+              setStreamingState({ isStreaming: false });
+              setIsLoading(false);
+              return;
             }
 
-            const doneSources: MessageSource[] = Array.isArray(parsed.sources)
-              ? (parsed.sources as MessageSource[])
-              : Array.isArray(parsed.payload?.sources)
-                ? (parsed.payload.sources as MessageSource[])
-                : [];
-            const citationResult = extractCitationsFromContent(cleanedAccumContent, doneSources);
-            cleanedAccumContent = citationResult.cleanedContent;
-            frontendCitations = citationResult.citations;
-
-            const recordResult = extractRecordTagsFromContent(cleanedAccumContent);
-            cleanedAccumContent = recordResult.cleanedContent;
-            frontendRecords = recordResult.records;
-
-            const suggestionsResult = extractSuggestionsFromContent(cleanedAccumContent);
-            cleanedAccumContent = suggestionsResult.cleanedContent;
-            frontendSuggestions = suggestionsResult.suggestions;
-          } else {
-            if (accumContentRef.current.includes("<record")) {
-              const { cleanedContent } = extractRecordTagsFromContent(accumContentRef.current);
-              cleanedAccumContent = cleanedContent;
+            let parsed: ParsedEvent;
+            try {
+              parsed = JSON.parse(event.data) as ParsedEvent;
+            } catch {
+              return;
             }
-          }
 
-          setMessages((prev) =>
-            prev.map((msg) => {
-              if (msg.id !== assistantMessageId) return msg;
+            const outerEventType = resolveEventType(event.event, parsed);
 
-              const eventType = resolveEventType(event.event, parsed);
-              const parsedError = extractError(parsed);
-              const parsedContent = extractContent(parsed);
-              const payload = parsed.payload;
-              const payloadSources = Array.isArray(payload?.sources)
-                ? (payload.sources as MessageSource[])
-                : undefined;
-              const payloadArtifactIds = Array.isArray(payload?.artifactIds)
-                ? (payload.artifactIds as string[])
-                : undefined;
-              const isComplete = isCompletionSignal;
-
-              if (eventType === "artifact" && payload) {
-                const artifact = payload as unknown as Artifact;
-                return {
-                  ...msg,
-                  artifactIds: [...(msg.artifactIds ?? []), artifact.artifactId],
-                };
+            // The runner's `started` frame carries the backend execution id —
+            // captured so Stop can cancel the run server-side.
+            if (outerEventType === "started") {
+              const startedExecutionId = (parsed as Record<string, unknown>)["executionId"];
+              if (typeof startedExecutionId === "string" && startedExecutionId) {
+                activeExecutionIdRef.current = startedExecutionId;
+                setStreamingState((prev) =>
+                  prev.isStreaming ? { ...prev, executionId: startedExecutionId } : prev,
+                );
               }
+            }
 
-              if (eventType === "step" && parsed.step) {
-                const existing = msg.steps ?? [];
-                const idx = existing.findIndex((s) => s.step_id === parsed.step?.step_id);
-                const nextSteps =
-                  idx >= 0
-                    ? existing.map((s, i) => (i === idx ? { ...s, ...parsed.step } : s))
-                    : [...existing, parsed.step];
-                return { ...msg, steps: nextSteps };
+            // The agent-runner emits control events (thought/tool_call/tool_result/status and the
+            // multi-agent handoff frames) that must surface as step chips, never as message text.
+            const isRunnerControl = isRunnerControlEvent(outerEventType);
+            const isCompletionSignal =
+              outerEventType === "done" ||
+              parsed.isComplete === true ||
+              parsed.type === "complete" ||
+              isRunnerCompletion(outerEventType, parsed);
+
+            let runnerStep: AgentStepEvent | null = null;
+            if (isRunnerControl) {
+              runnerStep = runnerEventToStep(outerEventType, parsed, stepSeqRef.current);
+              if (runnerStep && runnerStepConsumesSeq(outerEventType)) {
+                stepSeqRef.current += 1;
               }
+            }
 
-              // Runner control event mapped to a step chip (thought → reasoning,
-              // tool_call/tool_result → tool steps, handoff → skill boundary). Returning
-              // here also prevents thought reasoning text from leaking into the bubble.
-              if (runnerStep) {
-                const step = runnerStep;
-                const existing = msg.steps ?? [];
-                const idx = existing.findIndex((s) => s.step_id === step.step_id);
-                const nextSteps =
-                  idx >= 0
-                    ? existing.map((s, i) => (i === idx ? { ...s, ...step } : s))
-                    : [...existing, step];
-                return { ...msg, steps: nextSteps };
-              }
+            if (outerEventType === "artifact" && parsed.payload) {
+              onArtifactsReadyRef.current?.([parsed.payload as unknown as Artifact]);
+            }
 
-              if (eventType === "plan" && parsed.plan) {
-                return { ...msg, plan: parsed.plan.phases };
-              }
-
-              if (eventType === "context_required" && parsed.contextKey && parsed.choices) {
-                return {
-                  ...msg,
-                  contextRequired: {
-                    contextKey: parsed.contextKey,
-                    questionIntro: parsed.questionIntro ?? "",
-                    choices: parsed.choices,
-                  },
-                };
-              }
-
-              // HITL tool approvals: a request appends a pending card on the
-              // streaming message (the run is paused server-side); the resolved
-              // event — whether triggered by this client or another channel —
-              // flips the card's status and carries any deny reason.
-              if (eventType === "tool_approval_request") {
-                const approval = toolApprovalFromRequestEvent(parsed);
-                if (!approval) return msg;
-                const existing = msg.toolApprovals ?? [];
-                const idx = existing.findIndex((a) => a.approvalId === approval.approvalId);
-                const nextApprovals =
-                  idx >= 0
-                    ? existing.map((a, i) => (i === idx ? { ...a, ...approval } : a))
-                    : [...existing, approval];
-                return { ...msg, toolApprovals: nextApprovals };
-              }
-
-              if (eventType === "tool_approval_resolved") {
-                const resolution = toolApprovalResolutionFromEvent(parsed);
-                if (!resolution || !msg.toolApprovals?.length) return msg;
-                return {
-                  ...msg,
-                  toolApprovals: msg.toolApprovals.map((a) =>
-                    a.approvalId === resolution.approvalId
-                      ? {
-                          ...a,
-                          status: resolution.status,
-                          reason: resolution.reason ?? a.reason ?? null,
-                          error: undefined,
-                        }
-                      : a,
-                  ),
-                };
-              }
-
-              if (isComplete) {
-                const backendArtifactIds =
-                  parsed.artifactIds ?? payloadArtifactIds ?? msg.artifactIds;
-                const allArtifactIds = [
-                  ...(backendArtifactIds ?? []),
-                  ...frontendArtifacts.map((a) => a.artifactId),
-                ];
-                const contentWasModified = cleanedAccumContent !== originalAccumContent;
-                const hasClientSideChanges =
-                  frontendArtifacts.length > 0 ||
-                  frontendCitations.length > 0 ||
-                  frontendRecords.length > 0 ||
-                  contentWasModified;
-                const doneSuggestions: string[] = Array.isArray(parsed.suggestions)
-                  ? (parsed.suggestions as unknown[]).filter(
-                      (s): s is string => typeof s === "string",
-                    )
-                  : [];
-                const finalSuggestions =
-                  doneSuggestions.length > 0 ? doneSuggestions : frontendSuggestions;
-                return {
-                  ...msg,
-                  content: hasClientSideChanges ? cleanedAccumContent : msg.content,
-                  isStreaming: false,
-                  artifactIds: allArtifactIds.length > 0 ? allArtifactIds : msg.artifactIds,
-                  sources:
-                    frontendCitations.length > 0
-                      ? frontendCitations
-                      : (parsed.sources ?? payloadSources ?? msg.sources),
-                  records: frontendRecords.length > 0 ? frontendRecords : msg.records,
-                  suggestions: finalSuggestions.length > 0 ? finalSuggestions : msg.suggestions,
-                  elapsedMs: msg.startedAt ? Date.now() - msg.startedAt : msg.elapsedMs,
-                };
-              }
-
-              if (eventType === "error" || parsedError) {
-                return {
-                  ...msg,
-                  isStreaming: false,
-                  error: parsedError ?? "Unexpected stream error",
-                  elapsedMs: msg.startedAt ? Date.now() - msg.startedAt : msg.elapsedMs,
-                };
-              }
-
-              const nextContent = parsedContent ? `${msg.content}${parsedContent}` : msg.content;
-
-              return {
-                ...msg,
-                content: nextContent,
-                sources: parsed.sources ?? payloadSources ?? msg.sources,
-                isStreaming: !isComplete,
-                elapsedMs: isComplete && msg.startedAt ? Date.now() - msg.startedAt : msg.elapsedMs,
+            // context_resolved: the server resolved a required context value.
+            // Accept both "contextId" (new) and "frameworkId" (legacy backend compat).
+            if (outerEventType === "context_resolved" && parsed.payload) {
+              const { key, value } = parsed.payload as {
+                key?: string;
+                value?: string;
               };
-            }),
-          );
-
-          const eventType = resolveEventType(event.event, parsed);
-          if (isCompletionSignal || eventType === "error") {
-            setStreamingState({ isStreaming: false });
-            setIsLoading(false);
-          }
-        },
-        onError() {
-          setStreamingState({
-            isStreaming: false,
-            error: "Failed to parse stream event",
-          });
-          setIsLoading(false);
-        },
-      });
-
-      while (true) {
-        if (signal.aborted) break;
-        const { done, value } = await reader.read();
-        if (done) break;
-        parser.feed(decoder.decode(value, { stream: true }));
-      }
-
-      const tail = decoder.decode();
-      if (tail) {
-        parser.feed(tail);
-      }
-
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === assistantMessageId && msg.isStreaming
-            ? {
-                ...msg,
-                isStreaming: false,
-                elapsedMs: msg.startedAt ? Date.now() - msg.startedAt : msg.elapsedMs,
+              if ((key === "contextId" || key === "frameworkId") && typeof value === "string") {
+                setActiveContext(value);
               }
-            : msg,
-        ),
-      );
-      setStreamingState({ isStreaming: false });
-      setIsLoading(false);
+            }
 
-      reader.releaseLock();
+            const rawParsedContent = extractContent(parsed);
+            if (rawParsedContent && outerEventType !== "artifact" && !isRunnerControl) {
+              accumContentRef.current += rawParsedContent;
+            }
+
+            let frontendArtifacts: Artifact[] = [];
+            const originalAccumContent = accumContentRef.current;
+            let cleanedAccumContent = originalAccumContent;
+            let frontendCitations: MessageSource[] = [];
+            let frontendRecords: RecordTag[] = [];
+            let frontendSuggestions: string[] = [];
+            if (isCompletionSignal) {
+              const extracted = extractArtifactsFromContent(
+                originalAccumContent,
+                assistantMessageId,
+              );
+              if (extracted.artifacts.length > 0) {
+                frontendArtifacts = extracted.artifacts;
+                cleanedAccumContent = extracted.cleanedContent;
+                onArtifactsReadyRef.current?.(frontendArtifacts);
+              }
+
+              const doneSources: MessageSource[] = Array.isArray(parsed.sources)
+                ? (parsed.sources as MessageSource[])
+                : Array.isArray(parsed.payload?.sources)
+                  ? (parsed.payload.sources as MessageSource[])
+                  : [];
+              const citationResult = extractCitationsFromContent(cleanedAccumContent, doneSources);
+              cleanedAccumContent = citationResult.cleanedContent;
+              frontendCitations = citationResult.citations;
+
+              const recordResult = extractRecordTagsFromContent(cleanedAccumContent);
+              cleanedAccumContent = recordResult.cleanedContent;
+              frontendRecords = recordResult.records;
+
+              const suggestionsResult = extractSuggestionsFromContent(cleanedAccumContent);
+              cleanedAccumContent = suggestionsResult.cleanedContent;
+              frontendSuggestions = suggestionsResult.suggestions;
+            } else {
+              if (accumContentRef.current.includes("<record")) {
+                const { cleanedContent } = extractRecordTagsFromContent(accumContentRef.current);
+                cleanedAccumContent = cleanedContent;
+              }
+            }
+
+            setMessages((prev) =>
+              prev.map((msg) => {
+                if (msg.id !== assistantMessageId) return msg;
+
+                const eventType = resolveEventType(event.event, parsed);
+                const parsedError = extractError(parsed);
+                const parsedContent = extractContent(parsed);
+                const payload = parsed.payload;
+                const payloadSources = Array.isArray(payload?.sources)
+                  ? (payload.sources as MessageSource[])
+                  : undefined;
+                const payloadArtifactIds = Array.isArray(payload?.artifactIds)
+                  ? (payload.artifactIds as string[])
+                  : undefined;
+                const isComplete = isCompletionSignal;
+
+                if (eventType === "artifact" && payload) {
+                  const artifact = payload as unknown as Artifact;
+                  return {
+                    ...msg,
+                    artifactIds: [...(msg.artifactIds ?? []), artifact.artifactId],
+                  };
+                }
+
+                if (eventType === "step" && parsed.step) {
+                  const existing = msg.steps ?? [];
+                  const idx = existing.findIndex((s) => s.step_id === parsed.step?.step_id);
+                  const nextSteps =
+                    idx >= 0
+                      ? existing.map((s, i) => (i === idx ? { ...s, ...parsed.step } : s))
+                      : [...existing, parsed.step];
+                  return { ...msg, steps: nextSteps };
+                }
+
+                // Runner control event mapped to a step chip (thought → reasoning,
+                // tool_call/tool_result → tool steps, handoff → skill boundary). Returning
+                // here also prevents thought reasoning text from leaking into the bubble.
+                if (runnerStep) {
+                  const step = runnerStep;
+                  const existing = msg.steps ?? [];
+                  const idx = existing.findIndex((s) => s.step_id === step.step_id);
+                  const nextSteps =
+                    idx >= 0
+                      ? existing.map((s, i) => (i === idx ? { ...s, ...step } : s))
+                      : [...existing, step];
+                  return { ...msg, steps: nextSteps };
+                }
+
+                if (eventType === "plan" && parsed.plan) {
+                  return { ...msg, plan: parsed.plan.phases };
+                }
+
+                if (eventType === "context_required" && parsed.contextKey && parsed.choices) {
+                  return {
+                    ...msg,
+                    contextRequired: {
+                      contextKey: parsed.contextKey,
+                      questionIntro: parsed.questionIntro ?? "",
+                      choices: parsed.choices,
+                    },
+                  };
+                }
+
+                // HITL tool approvals: a request appends a pending card on the
+                // streaming message (the run is paused server-side); the resolved
+                // event — whether triggered by this client or another channel —
+                // flips the card's status and carries any deny reason.
+                if (eventType === "tool_approval_request") {
+                  const approval = toolApprovalFromRequestEvent(parsed);
+                  if (!approval) return msg;
+                  const existing = msg.toolApprovals ?? [];
+                  const idx = existing.findIndex((a) => a.approvalId === approval.approvalId);
+                  const nextApprovals =
+                    idx >= 0
+                      ? existing.map((a, i) => (i === idx ? { ...a, ...approval } : a))
+                      : [...existing, approval];
+                  return { ...msg, toolApprovals: nextApprovals };
+                }
+
+                if (eventType === "tool_approval_resolved") {
+                  const resolution = toolApprovalResolutionFromEvent(parsed);
+                  if (!resolution || !msg.toolApprovals?.length) return msg;
+                  return {
+                    ...msg,
+                    toolApprovals: msg.toolApprovals.map((a) =>
+                      a.approvalId === resolution.approvalId
+                        ? {
+                            ...a,
+                            status: resolution.status,
+                            reason: resolution.reason ?? a.reason ?? null,
+                            error: undefined,
+                          }
+                        : a,
+                    ),
+                  };
+                }
+
+                if (isComplete) {
+                  const backendArtifactIds =
+                    parsed.artifactIds ?? payloadArtifactIds ?? msg.artifactIds;
+                  const allArtifactIds = [
+                    ...(backendArtifactIds ?? []),
+                    ...frontendArtifacts.map((a) => a.artifactId),
+                  ];
+                  const contentWasModified = cleanedAccumContent !== originalAccumContent;
+                  const hasClientSideChanges =
+                    frontendArtifacts.length > 0 ||
+                    frontendCitations.length > 0 ||
+                    frontendRecords.length > 0 ||
+                    contentWasModified;
+                  const doneSuggestions: string[] = Array.isArray(parsed.suggestions)
+                    ? (parsed.suggestions as unknown[]).filter(
+                        (s): s is string => typeof s === "string",
+                      )
+                    : [];
+                  const finalSuggestions =
+                    doneSuggestions.length > 0 ? doneSuggestions : frontendSuggestions;
+                  return {
+                    ...msg,
+                    content: hasClientSideChanges ? cleanedAccumContent : msg.content,
+                    isStreaming: false,
+                    artifactIds: allArtifactIds.length > 0 ? allArtifactIds : msg.artifactIds,
+                    sources:
+                      frontendCitations.length > 0
+                        ? frontendCitations
+                        : (parsed.sources ?? payloadSources ?? msg.sources),
+                    records: frontendRecords.length > 0 ? frontendRecords : msg.records,
+                    suggestions: finalSuggestions.length > 0 ? finalSuggestions : msg.suggestions,
+                    elapsedMs: msg.startedAt ? Date.now() - msg.startedAt : msg.elapsedMs,
+                  };
+                }
+
+                if (eventType === "error" || parsedError) {
+                  return {
+                    ...msg,
+                    isStreaming: false,
+                    error: parsedError ?? "Unexpected stream error",
+                    elapsedMs: msg.startedAt ? Date.now() - msg.startedAt : msg.elapsedMs,
+                  };
+                }
+
+                const nextContent = parsedContent ? `${msg.content}${parsedContent}` : msg.content;
+
+                return {
+                  ...msg,
+                  content: nextContent,
+                  sources: parsed.sources ?? payloadSources ?? msg.sources,
+                  isStreaming: !isComplete,
+                  elapsedMs:
+                    isComplete && msg.startedAt ? Date.now() - msg.startedAt : msg.elapsedMs,
+                };
+              }),
+            );
+
+            const eventType = resolveEventType(event.event, parsed);
+            if (isCompletionSignal || eventType === "error") {
+              sawTerminal = true;
+              setStreamingState({ isStreaming: false });
+              setIsLoading(false);
+            }
+          },
+          onError() {
+            setStreamingState({
+              isStreaming: false,
+              error: "Failed to parse stream event",
+            });
+            setIsLoading(false);
+          },
+        });
+
+        while (true) {
+          if (signal.aborted) break;
+          const { done, value } = await currentReader.read();
+          if (done) break;
+          parser.feed(decoder.decode(value, { stream: true }));
+        }
+
+        const tail = decoder.decode();
+        if (tail) {
+          parser.feed(tail);
+        }
+
+        currentReader.releaseLock();
+
+        // Clean end (completion / [DONE] / error) or a user abort: settle and stop.
+        if (sawTerminal || signal.aborted) {
+          settleStopped();
+          return;
+        }
+
+        // The stream ended with no terminal frame — the connection dropped mid-run. Try
+        // to reattach to the (detached, still-persisting) run via the replay endpoint.
+        const executionId = activeExecutionIdRef.current;
+        const reconnect = adapter.getExecutionStream?.bind(adapter);
+        if (!executionId || !reconnect || reconnectAttempt >= MAX_RECONNECTS) {
+          settleDropped();
+          return;
+        }
+
+        reconnectAttempt += 1;
+        let replayStream: ReadableStream<Uint8Array>;
+        try {
+          replayStream = await reconnect(executionId, 0, { signal });
+        } catch (error) {
+          if (error instanceof Error && error.name === "AbortError") return;
+          settleDropped();
+          return;
+        }
+
+        // Replay re-sends the whole turn from chunk 0, so reset this bubble's
+        // accumulators and everything the replay rebuilds (content, steps, artifact
+        // ids) to avoid duplicated/misplaced chips. Tool-approval cards are preserved
+        // (deduped by approvalId on replay) so a still-pending approval survives.
+        accumContentRef.current = "";
+        stepSeqRef.current = 0;
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMessageId
+              ? { ...msg, content: "", steps: [], artifactIds: [], isStreaming: true }
+              : msg,
+          ),
+        );
+        currentReader = replayStream.getReader();
+      }
     },
-    [setMessages, setStreamingState, setIsLoading, setActiveContext],
+    [setMessages, setStreamingState, setIsLoading, setActiveContext, adapter],
   );
 
   const sendMessage = useCallback(
@@ -591,6 +691,11 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
       const assistantMessage = createAssistantMessage();
       accumContentRef.current = "";
       stepSeqRef.current = 0;
+      // Remember the turn so retryLastMessage() can re-send it, and supersede any pending
+      // resume affordance — a new run replaces whatever the crashed one would have offered.
+      lastUserMessageRef.current = trimmed;
+      resumableExecutionIdRef.current = null;
+      setResumeState(null);
 
       const messagesToInsert: ChatMessage[] = matchedCommand
         ? [
@@ -682,6 +787,73 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
   }, [sendMessage]);
 
   /**
+   * The composer Resume/Retry action. When the last run is checkpoint-resumable
+   * (`resumeState === "resumable"`, an execution id + an adapter that can resume), it
+   * continues that run from the server-side checkpoint and streams the remainder.
+   * Otherwise — or if the backend turns out not to be able to resume after all (e.g. a
+   * 409 telling us to retry) — it falls back to re-sending the last user message.
+   */
+  const resumeRun = useCallback(async () => {
+    const executionId = resumableExecutionIdRef.current;
+    const resume = adapter.resumeExecution?.bind(adapter);
+    if (!executionId || !resume) {
+      await retryLastMessage();
+      return;
+    }
+
+    // Clear the affordance and drop a trailing errored assistant bubble (mirrors retry).
+    setResumeState(null);
+    setMessages((prev) => {
+      const last = prev[prev.length - 1];
+      return last?.role === "assistant" && last.error ? prev.slice(0, -1) : prev;
+    });
+
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    activeExecutionIdRef.current = executionId;
+
+    const assistantMessage = createAssistantMessage();
+    setMessages((prev) => [...prev, assistantMessage]);
+    setStreamingState({ isStreaming: true, currentMessageId: assistantMessage.id, executionId });
+    setIsLoading(true);
+
+    let stream: ReadableStream<Uint8Array>;
+    try {
+      stream = await resume(executionId, { signal: controller.signal });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
+      // Not resumable after all (or the open failed): drop the placeholder and retry the
+      // last turn from scratch so the user still gets an answer.
+      resumableExecutionIdRef.current = null;
+      setMessages((prev) => prev.filter((msg) => msg.id !== assistantMessage.id));
+      setStreamingState({ isStreaming: false });
+      setIsLoading(false);
+      await retryLastMessage();
+      return;
+    }
+
+    try {
+      await consumeStream(stream.getReader(), assistantMessage.id, controller.signal);
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantMessage.id
+            ? {
+                ...msg,
+                isStreaming: false,
+                error: error instanceof Error ? error.message : "Unexpected error",
+              }
+            : msg,
+        ),
+      );
+      setStreamingState({ isStreaming: false });
+      setIsLoading(false);
+    }
+  }, [adapter, consumeStream, retryLastMessage]);
+
+  /**
    * Stop the in-flight response (the composer Stop button). Cancels the run
    * server-side via the adapter (best-effort, fire-and-forget — the runner also
    * cancels on disconnect), aborts the local stream immediately, and marks the
@@ -767,6 +939,17 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
             : {}),
         };
       });
+
+      // Seed the retry source and resume affordance from the loaded session so the
+      // composer's Retry/Resume control works after a fresh page load (before any
+      // in-session send has populated these). `resumeState: "live"` means a run is in
+      // flight and the reconnect path below takes over — no manual control is offered.
+      const lastUserMsg = [...session.messages]
+        .reverse()
+        .find((m) => m.role === "user" && typeof m.content === "string" && m.content.length > 0);
+      lastUserMessageRef.current = lastUserMsg?.content ?? "";
+      resumableExecutionIdRef.current = session.resumableExecutionId ?? null;
+      setResumeState(session.resumeState ?? null);
 
       if (session.activeExecutionId && typeof adapter.getExecutionStream === "function") {
         const controller = new AbortController();
@@ -888,6 +1071,8 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
       stopStreaming,
       clearMessages,
       retryLastMessage,
+      resumeState,
+      resumeRun,
       loadSession,
       canResolveToolApprovals,
       resolveToolApproval,
@@ -903,6 +1088,8 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
       stopStreaming,
       clearMessages,
       retryLastMessage,
+      resumeState,
+      resumeRun,
       loadSession,
       canResolveToolApprovals,
       resolveToolApproval,

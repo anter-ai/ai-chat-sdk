@@ -129,6 +129,8 @@ function ChatShellContent({
     adapter,
     currentSessionId,
     currentSessionTitle,
+    resumeState,
+    resumeRun,
   } = useChat();
   const { setTopBanner, setBottomBanner, config } = useChatContext();
 
@@ -400,6 +402,8 @@ function ChatShellContent({
                       <ChatComposer
                         isStreaming={isStreaming}
                         onStop={stopStreaming}
+                        resumeState={resumeState}
+                        onResume={() => void resumeRun()}
                         onSendMessage={(
                           message,
                           attachedFileIds,

@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Mic, Plus, SlidersHorizontal, Square } from "lucide-react";
+import { Mic, Plus, RotateCcw, SlidersHorizontal, Square } from "lucide-react";
 import { useChatContext } from "../../headless/context/chat-provider";
+import type { ResumeState } from "../../headless/types/session";
 import { SlashCommandMenu } from "./slash-command-menu";
 import { ComposerPlusMenu } from "./composer-plus-menu";
 import { ComposerToolsMenu } from "./composer-tools-menu";
@@ -24,10 +25,25 @@ interface ChatComposerProps {
   isStreaming?: boolean;
   /** Stops the in-flight response; renders the Stop button while streaming. */
   onStop?: () => void;
+  /**
+   * Resume affordance for the last crashed run (from the session's backend hint).
+   * `resumable` renders a "Resume" button, `retry` a "Retry" button; both invoke
+   * `onResume`. Hidden while streaming, when `config.enableResumeRetry` is false, or
+   * when `onResume` is absent.
+   */
+  resumeState?: ResumeState;
+  onResume?: () => void;
   className?: string;
 }
 
-export function ChatComposer({ onSendMessage, isStreaming, onStop, className }: ChatComposerProps) {
+export function ChatComposer({
+  onSendMessage,
+  isStreaming,
+  onStop,
+  resumeState,
+  onResume,
+  className,
+}: ChatComposerProps) {
   const {
     adapter,
     config,
@@ -44,7 +60,16 @@ export function ChatComposer({ onSendMessage, isStreaming, onStop, className }: 
     bottomBanner,
     setBottomBanner,
   } = useChatContext();
-  const { enableFileUpload } = config;
+  const { enableFileUpload, enableResumeRetry } = config;
+  // Show the Resume/Retry control only when idle, enabled, wired, and the backend hint
+  // says the last run is recoverable. `resumable` → continue from checkpoint; `retry` →
+  // re-send the last turn (the handler decides; this only picks the label).
+  const showResumeControl =
+    enableResumeRetry &&
+    !isStreaming &&
+    typeof onResume === "function" &&
+    (resumeState === "resumable" || resumeState === "retry");
+  const resumeLabel = resumeState === "resumable" ? "Resume" : "Retry";
   const [value, setValue] = useState("");
   const [isComposing, setIsComposing] = useState(false);
   const [showSlashMenu, setShowSlashMenu] = useState(false);
@@ -327,6 +352,22 @@ export function ChatComposer({ onSendMessage, isStreaming, onStop, className }: 
             {plugins?.composerActions}
           </div>
           <div className="ais-composer-footer-right">
+            {showResumeControl && (
+              <button
+                className="ais-composer-footer-btn ais-composer-resume-btn"
+                type="button"
+                aria-label={`${resumeLabel} the previous response`}
+                title={
+                  resumeState === "resumable"
+                    ? "Continue the interrupted response"
+                    : "Re-send your last message"
+                }
+                onClick={onResume}
+              >
+                <RotateCcw size={14} />
+                <span>{resumeLabel}</span>
+              </button>
+            )}
             {isStreaming && onStop ? (
               <button
                 className="ais-composer-footer-btn ais-composer-stop-btn"

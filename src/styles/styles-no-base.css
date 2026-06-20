@@ -1373,6 +1373,21 @@
   background: color-mix(in oklab, var(--message-ai-text) 8%, transparent);
 }
 
+/* Resume/Retry control — accented so it reads as the recommended next action after a
+   crashed run, mirroring the stop button's footprint. */
+.ais-composer-resume-btn {
+  border: 1.5px solid color-mix(in oklab, var(--chat-accent) 45%, transparent);
+  color: var(--chat-accent);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+}
+
+.ais-composer-resume-btn:hover {
+  border-color: var(--chat-accent);
+  background: color-mix(in oklab, var(--chat-accent) 10%, transparent);
+}
+
 /* "You stopped this response" marker on a user-stopped message */
 .ais-message-stopped {
   margin: 6px 0 0;

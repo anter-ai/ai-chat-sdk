@@ -122,4 +122,15 @@ export interface ChatAdapter {
     resumeFrom?: number,
     options?: SendMessageOptions,
   ): Promise<ReadableStream<Uint8Array>>;
+  /**
+   * Continue a crashed run from its last server-side checkpoint (the "Resume" button),
+   * streaming the remainder. Distinct from {@link getExecutionStream}, which only
+   * replays/reconnects to a run whose state still exists in-process. When the run turns
+   * out not to be resumable the host backend answers non-2xx (e.g. a 409 telling the
+   * client to retry); the adapter MUST reject so the UI can fall back to a fresh retry.
+   */
+  resumeExecution?(
+    executionId: string,
+    options?: SendMessageOptions,
+  ): Promise<ReadableStream<Uint8Array>>;
 }

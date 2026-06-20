@@ -30,6 +30,13 @@ export interface ChatConfig {
   enableSlashCommands?: boolean;
   enableCommandPalette?: boolean;
   enableSlashFocusShortcut?: boolean;
+  /**
+   * Show the composer Resume/Retry control when the loaded session's `resumeState`
+   * indicates the last run crashed (`resumable` → Resume, `retry` → Retry). Requires
+   * the host adapter to surface `resumeState`/`resumableExecutionId` from `loadSession`
+   * and (for Resume) implement `resumeExecution`. Defaults to true.
+   */
+  enableResumeRetry?: boolean;
   defaultModel?: string;
   theme?: "light" | "dark" | "system";
   themeOptions?: ChatThemeSpecification;

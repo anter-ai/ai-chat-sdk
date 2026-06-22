@@ -3,6 +3,7 @@ import { render, fireEvent, screen } from "@testing-library/react";
 import { ChatComposer } from "./chat-composer";
 import { useChatContext } from "../../headless/context/chat-provider";
 import { defaultStrings } from "../../headless/types/config";
+import { registerSlashCommand } from "../../extensions/slash-command-registry";
 import "@testing-library/jest-dom";
 
 jest.mock("../../headless/context/chat-provider", () => ({
@@ -85,6 +86,32 @@ describe("ChatComposer", () => {
     fireEvent.change(textarea, { target: { value: "Hello" } });
     fireEvent.keyDown(textarea, { key: "Enter", code: "Enter" });
     expect(mockOnSendMessage).toHaveBeenCalledWith("Hello", undefined);
+  });
+
+  it("closes the menu when a priming-only command is selected, so the next Enter submits", () => {
+    // A command whose onSelect only primes the input (no submit). Selecting it must close
+    // the menu; otherwise the next Enter would re-select instead of submitting (Bug 2).
+    registerSlashCommand({
+      name: "/prime",
+      description: "primes input only",
+      slashCommandId: "prime",
+      exampleUsage: "/prime",
+      onSelect: ({ setValue }) => setValue("/prime"),
+    });
+    mockOnSendMessage.mockClear(); // beforeEach doesn't reset this shared mock
+    render(<ChatComposer onSendMessage={mockOnSendMessage} />);
+    const textarea = screen.getByPlaceholderText(defaultStrings.composerPlaceholder);
+    fireEvent.change(textarea, { target: { value: "/prime" } });
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+
+    // First Enter selects the command: menu closes, input primed, nothing sent yet.
+    fireEvent.keyDown(textarea, { key: "Enter", code: "Enter" });
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(mockOnSendMessage).not.toHaveBeenCalled();
+
+    // Second Enter submits the primed command.
+    fireEvent.keyDown(textarea, { key: "Enter", code: "Enter" });
+    expect(mockOnSendMessage).toHaveBeenCalledWith("/prime", undefined);
   });
 
   it("accepts the highlighted slash command on Tab", () => {

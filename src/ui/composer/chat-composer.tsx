@@ -217,8 +217,12 @@ export function ChatComposer({
       });
     } else {
       setValue(commandName);
-      setShowSlashMenu(false);
     }
+    // Always close the menu after a selection. Otherwise a command whose onSelect only
+    // primes the input (e.g. `setValue("/agent ")`) leaves the menu open, so the next
+    // Enter re-selects instead of submitting — making the command appear to need a second
+    // attempt. A command that submits from onSelect already closed it; this is idempotent.
+    setShowSlashMenu(false);
   };
 
   const contextTag = activeContextLabel ?? activeContextId;

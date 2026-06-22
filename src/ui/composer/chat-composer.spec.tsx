@@ -87,6 +87,18 @@ describe("ChatComposer", () => {
     expect(mockOnSendMessage).toHaveBeenCalledWith("Hello", undefined);
   });
 
+  it("accepts the highlighted slash command on Tab", () => {
+    render(<ChatComposer onSendMessage={mockOnSendMessage} />);
+    const textarea = screen.getByPlaceholderText(defaultStrings.composerPlaceholder);
+    fireEvent.change(textarea, { target: { value: "/help" } });
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+
+    // Tab accepts the highlighted `/help` command; its onSelect submits, so the message
+    // is sent without the browser blurring the textarea to the next focusable element.
+    fireEvent.keyDown(textarea, { key: "Tab", code: "Tab" });
+    expect(mockOnSendMessage).toHaveBeenCalledWith("/help", undefined);
+  });
+
   it("closes slash menu on Escape", () => {
     render(<ChatComposer onSendMessage={mockOnSendMessage} />);
     const textarea = screen.getByPlaceholderText(defaultStrings.composerPlaceholder);

@@ -282,6 +282,20 @@ export function ChatComposer({
                 return;
               }
 
+              // Tab accepts the highlighted command without letting the browser blur the
+              // textarea to the next focusable element — focus stays in the composer so the
+              // user can immediately keep typing (e.g. `/agent set …`) or hit Enter to send.
+              // For a complete, no-arg command (e.g. `/meta`) the command's own onSelect
+              // submits, so Tab runs it directly.
+              if (event.key === "Tab") {
+                event.preventDefault();
+                const selectedCommand = slashMenuItems[activeSlashIndex];
+                if (selectedCommand) {
+                  selectSlashCommand(selectedCommand);
+                }
+                return;
+              }
+
               if (event.key === "Enter" && !event.shiftKey && !isComposing) {
                 event.preventDefault();
                 const selectedCommand = slashMenuItems[activeSlashIndex];

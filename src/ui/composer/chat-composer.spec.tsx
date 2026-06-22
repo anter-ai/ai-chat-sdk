@@ -16,6 +16,7 @@ describe("ChatComposer", () => {
   const mockConfig = { enableSlashCommands: true };
 
   beforeEach(() => {
+    mockOnSendMessage.mockReset();
     mockOnStop.mockReset();
     (useChatContext as jest.Mock).mockReturnValue({
       config: mockConfig,
@@ -98,7 +99,6 @@ describe("ChatComposer", () => {
       exampleUsage: "/prime",
       onSelect: ({ setValue }) => setValue("/prime"),
     });
-    mockOnSendMessage.mockClear(); // beforeEach doesn't reset this shared mock
     render(<ChatComposer onSendMessage={mockOnSendMessage} />);
     const textarea = screen.getByPlaceholderText(defaultStrings.composerPlaceholder);
     fireEvent.change(textarea, { target: { value: "/prime" } });

@@ -36,6 +36,7 @@ interface ChatShellProps {
   /** Called when the user triggers the "save artifact" action. When omitted, the button is hidden. */
   onExportArtifact?: (artifactId: string) => Promise<void>;
   onRecordClick?: (record: RecordTag) => void;
+  renderMessageFooter?: (message: SessionWithMessages["messages"][number]) => React.ReactNode;
   recordPanel?: React.ReactNode;
   className?: string;
   /**
@@ -64,6 +65,7 @@ interface ChatShellProps {
 export function ChatShell({
   onExportArtifact,
   onRecordClick,
+  renderMessageFooter,
   recordPanel,
   className,
   style,
@@ -87,6 +89,7 @@ export function ChatShell({
         enableFileUpload={config.enableFileUpload}
         onExportArtifact={onExportArtifact}
         onRecordClick={onRecordClick}
+        renderMessageFooter={renderMessageFooter}
         recordPanel={recordPanel}
         className={className}
         style={style}
@@ -111,6 +114,7 @@ interface ChatShellContentProps extends ChatShellProps {
 function ChatShellContent({
   onExportArtifact,
   onRecordClick,
+  renderMessageFooter,
   recordPanel,
   className,
   style,
@@ -404,6 +408,7 @@ function ChatShellContent({
                         artifactsCtx={artifactsCtx}
                         sourcesCtx={sourcesCtx}
                         onRecordClick={onRecordClick}
+                        renderMessageFooter={renderMessageFooter}
                         emptyState={emptyState}
                       />
                       <ChatComposer
@@ -462,7 +467,12 @@ function ChatShellContent({
             <div className="ais-embed-panel">
               {recordPanel ??
                 (config.enableArtifacts && artifactsCtx.panelState.isOpen && (
-                  <ArtifactPanel artifactsCtx={artifactsCtx} onExportArtifact={onExportArtifact} />
+                  <ArtifactPanel
+                    artifactsCtx={artifactsCtx}
+                    onExportArtifact={onExportArtifact}
+                    onSendMessage={(text) => void sendMessage(text)}
+                    isStreaming={isStreaming}
+                  />
                 ))}
             </div>
           </ResizablePanel>

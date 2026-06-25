@@ -50,6 +50,11 @@ export function useSessionFiles(): UseSessionFilesReturn {
     }
   }, [adapter, sessionId]);
 
+  // Reset files when sessionId changes (including to undefined/new chat)
+  useEffect(() => {
+    setFiles([]);
+  }, [sessionId]);
+
   // Single effect covers both cases: session change AND panel open.
   // Having two separate effects caused a double fetch when sessionId changed while panelOpen was true.
   useEffect(() => {

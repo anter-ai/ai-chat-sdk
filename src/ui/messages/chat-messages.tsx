@@ -7,12 +7,14 @@ import { useChat } from "../../headless/hooks/use-chat";
 import { useStickyBottom } from "../../headless/hooks/use-sticky-bottom";
 import { ChatEmptyState } from "../empty-state/chat-empty-state";
 import { ChatMessage } from "./chat-message";
+import type { ChatMessage as ChatMessageType } from "../../headless/types/chat";
 import type { RecordTag } from "../../headless/utils/record-utils";
 
 interface ChatMessagesProps {
   artifactsCtx: UseArtifactsReturn;
   sourcesCtx: UseSourcesReturn;
   onRecordClick?: (record: RecordTag) => void;
+  renderMessageFooter?: (message: ChatMessageType) => React.ReactNode;
   /** Consumer-supplied empty state. Falls back to a minimal generic empty state. */
   emptyState?: React.ReactNode;
 }
@@ -21,6 +23,7 @@ export function ChatMessages({
   artifactsCtx,
   sourcesCtx,
   onRecordClick,
+  renderMessageFooter,
   emptyState,
 }: ChatMessagesProps) {
   const { messages, retryLastMessage, sendMessage, canResolveToolApprovals, resolveToolApproval } =
@@ -65,6 +68,7 @@ export function ChatMessages({
                 void retryLastMessage();
               }}
               onRecordClick={onRecordClick}
+              renderMessageFooter={renderMessageFooter}
               canResolveToolApprovals={canResolveToolApprovals}
               onResolveToolApproval={resolveToolApproval}
             />

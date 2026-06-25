@@ -212,6 +212,8 @@ function ChatWidgetContent({
                     <ArtifactPanel
                       artifactsCtx={artifactsCtx}
                       onExportArtifact={onExportArtifact}
+                      onSendMessage={(text) => void sendMessage(text)}
+                      isStreaming={isStreaming}
                     />
                   )}
                 </div>

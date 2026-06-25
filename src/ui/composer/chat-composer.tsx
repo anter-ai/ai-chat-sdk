@@ -208,17 +208,29 @@ export function ChatComposer({
     setPendingFiles([]);
   };
 
-  const selectSlashCommand = (commandName: string) => {
+  const selectSlashCommand = (commandName: string, preventSubmit = false) => {
     const command = getSlashCommandRegistry().find((c) => c.name === commandName);
     if (command) {
       command.onSelect({
         setValue,
-        submit: (v?: string) => submit(v ?? commandName),
+        submit: (v?: string) => {
+          if (preventSubmit) {
+            setValue(v ?? commandName);
+          } else {
+            submit(v ?? commandName);
+          }
+        },
       });
     } else {
       setValue(commandName);
-      setShowSlashMenu(false);
     }
+    // Always close the menu after a selection. Otherwise a command whose onSelect only
+    // primes the input (e.g. `setValue("/agent ")`) leaves the menu open, so the next
+    // Enter re-selects instead of submitting — making the command appear to need a second
+    // attempt. A command that submits from onSelect already closed it; this is idempotent.
+    setShowSlashMenu(false);
+    // Return focus to composer input box so the user can immediately keep typing or press Enter
+    textareaRef.current?.focus();
   };
 
   const contextTag = activeContextLabel ?? activeContextId;
@@ -243,7 +255,7 @@ export function ChatComposer({
             onActiveIndexChange={setActiveSlashIndex}
             onClose={() => setShowSlashMenu(false)}
             onItemsChange={setSlashMenuItems}
-            onSelect={selectSlashCommand}
+            onSelect={(cmd) => selectSlashCommand(cmd, true)}
             query={value.slice(1)}
           />
         ) : null}
@@ -279,6 +291,20 @@ export function ChatComposer({
                   (currentIndex) =>
                     (currentIndex - 1 + slashMenuItems.length) % slashMenuItems.length,
                 );
+                return;
+              }
+
+              // Tab accepts the highlighted command without letting the browser blur the
+              // textarea to the next focusable element — focus stays in the composer so the
+              // user can immediately keep typing (e.g. `/agent set …`) or hit Enter to send.
+              // For a complete, no-arg command (e.g. `/meta`) the command's own onSelect
+              // submits, so Tab runs it directly.
+              if (event.key === "Tab") {
+                event.preventDefault();
+                const selectedCommand = slashMenuItems[activeSlashIndex];
+                if (selectedCommand) {
+                  selectSlashCommand(selectedCommand, true);
+                }
                 return;
               }
 

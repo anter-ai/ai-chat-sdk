@@ -59,10 +59,20 @@ interface ArtifactPanelProps {
   artifactsCtx: UseArtifactsReturn;
   /** Optional callback to save the artifact to an external system. When provided, an export button is shown. */
   onExportArtifact?: (artifactId: string) => Promise<void>;
+  /** Dispatch a follow-up user turn into the conversation — handed to custom artifact renderers. */
+  onSendMessage?: (text: string) => void;
+  /** True while a response is streaming — handed to custom artifact renderers. */
+  isStreaming?: boolean;
   className?: string;
 }
 
-export function ArtifactPanel({ artifactsCtx, onExportArtifact, className }: ArtifactPanelProps) {
+export function ArtifactPanel({
+  artifactsCtx,
+  onExportArtifact,
+  onSendMessage,
+  isStreaming,
+  className,
+}: ArtifactPanelProps) {
   const { strings } = useChatContext();
   const { artifacts, activeArtifact, panelState, closePanel, setActiveTab } = artifactsCtx;
   const [copied, setCopied] = useState(false);
@@ -222,7 +232,11 @@ export function ArtifactPanel({ artifactsCtx, onExportArtifact, className }: Art
 
         <Tabs.Content className="ais-ap-tab-content ais-ap-preview" value="preview">
           <div className="ais-ap-prose">
-            <ArtifactPreview artifact={activeArtifact} />
+            <ArtifactPreview
+              artifact={activeArtifact}
+              onSendMessage={onSendMessage}
+              isStreaming={isStreaming}
+            />
           </div>
         </Tabs.Content>
 

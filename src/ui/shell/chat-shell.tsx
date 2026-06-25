@@ -36,6 +36,7 @@ interface ChatShellProps {
   /** Called when the user triggers the "save artifact" action. When omitted, the button is hidden. */
   onExportArtifact?: (artifactId: string) => Promise<void>;
   onRecordClick?: (record: RecordTag) => void;
+  renderMessageFooter?: (message: SessionWithMessages["messages"][number]) => React.ReactNode;
   recordPanel?: React.ReactNode;
   className?: string;
   /**
@@ -57,11 +58,14 @@ interface ChatShellProps {
   emptyState?: React.ReactNode;
   /** Tip announcements shown randomly in the composer. Defaults to none. */
   tips?: ComposerAnnouncement[];
+  /** Callback triggered when clicking the global Artifacts sidebar item. When provided, overrides local toggle. */
+  onArtifactsClick?: () => void;
 }
 
 export function ChatShell({
   onExportArtifact,
   onRecordClick,
+  renderMessageFooter,
   recordPanel,
   className,
   style,
@@ -70,6 +74,7 @@ export function ChatShell({
   onSessionChange,
   emptyState,
   tips = [],
+  onArtifactsClick,
 }: ChatShellProps) {
   const { config } = useChatContext();
   const artifactsCtx = useArtifacts();
@@ -84,6 +89,7 @@ export function ChatShell({
         enableFileUpload={config.enableFileUpload}
         onExportArtifact={onExportArtifact}
         onRecordClick={onRecordClick}
+        renderMessageFooter={renderMessageFooter}
         recordPanel={recordPanel}
         className={className}
         style={style}
@@ -92,6 +98,7 @@ export function ChatShell({
         onSessionChange={onSessionChange}
         emptyState={emptyState}
         tips={tips}
+        onArtifactsClick={onArtifactsClick}
       />
     </ChatStateProvider>
   );
@@ -107,6 +114,7 @@ interface ChatShellContentProps extends ChatShellProps {
 function ChatShellContent({
   onExportArtifact,
   onRecordClick,
+  renderMessageFooter,
   recordPanel,
   className,
   style,
@@ -119,6 +127,7 @@ function ChatShellContent({
   enableFileUpload,
   emptyState,
   tips = [],
+  onArtifactsClick,
 }: ChatShellContentProps) {
   const {
     sendMessage,
@@ -329,10 +338,12 @@ function ChatShellContent({
         onToggle={() => setSidebarOpen((prev) => !prev)}
         onViewChange={handleViewChange}
         artifactPanelOpen={artifactsCtx.panelState.isOpen}
-        onToggleArtifacts={() =>
-          artifactsCtx.panelState.isOpen
-            ? artifactsCtx.closePanel()
-            : artifactsCtx.openArtifact(Array.from(artifactsCtx.artifacts.keys())[0] ?? "")
+        onToggleArtifacts={
+          onArtifactsClick ||
+          (() =>
+            artifactsCtx.panelState.isOpen
+              ? artifactsCtx.closePanel()
+              : artifactsCtx.openArtifact(Array.from(artifactsCtx.artifacts.keys())[0] ?? ""))
         }
       />
 
@@ -397,6 +408,7 @@ function ChatShellContent({
                         artifactsCtx={artifactsCtx}
                         sourcesCtx={sourcesCtx}
                         onRecordClick={onRecordClick}
+                        renderMessageFooter={renderMessageFooter}
                         emptyState={emptyState}
                       />
                       <ChatComposer
@@ -455,7 +467,12 @@ function ChatShellContent({
             <div className="ais-embed-panel">
               {recordPanel ??
                 (config.enableArtifacts && artifactsCtx.panelState.isOpen && (
-                  <ArtifactPanel artifactsCtx={artifactsCtx} onExportArtifact={onExportArtifact} />
+                  <ArtifactPanel
+                    artifactsCtx={artifactsCtx}
+                    onExportArtifact={onExportArtifact}
+                    onSendMessage={(text) => void sendMessage(text)}
+                    isStreaming={isStreaming}
+                  />
                 ))}
             </div>
           </ResizablePanel>

@@ -294,6 +294,13 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
                 setStreamingState((prev) =>
                   prev.isStreaming ? { ...prev, executionId: startedExecutionId } : prev,
                 );
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, executionId: startedExecutionId }
+                      : msg,
+                  ),
+                );
               }
             }
 
@@ -613,27 +620,6 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
       const trimmed = message.trim();
       if (!trimmed) return;
 
-      let sessionId = overrideSessionId ?? currentSession?.sessionId;
-      if (!sessionId) {
-        sessionId = await adapter.createSession({
-          organizationId,
-          contextId: activeContextIdRef.current,
-        });
-      }
-      if (!currentSession?.sessionId) {
-        setCurrentSession({
-          sessionId,
-          title: "New conversation",
-          updatedAt: new Date().toISOString(),
-          status: "active",
-          contextId: activeContextIdRef.current,
-        });
-      }
-
-      abortControllerRef.current?.abort();
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
-      activeExecutionIdRef.current = null;
       const slashMatch = trimmed.match(/^(\/\w+)\s*([\s\S]*)$/);
       const commandName = slashMatch?.[1];
       const commandArgs = (slashMatch?.[2] ?? "").trim();
@@ -645,6 +631,12 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
       // and, by returning true, can fully handle a command (e.g. UI/local-storage
       // only commands) so it never reaches the backend. The built-in `/help` command
       // is the SDK's default handler when the host does not claim the command.
+      //
+      // This MUST run before session creation: a fully-handled local command must not
+      // create a backend session or fire onSessionChange. A command whose handler
+      // itself navigates/remounts the chat (e.g. the host's `/meta` mode switch) would
+      // otherwise race the spurious session-change navigation and lose on the first try
+      // — the well-known "`/meta` only works the second time" bug.
       if (commandName) {
         const appendedMessages: string[] = [];
         const slashCtx = {
@@ -686,6 +678,30 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
           return;
         }
       }
+
+      // Not a locally-handled command — forward to the backend, resolving/creating the
+      // session now (only past this point do we touch session state or the controller).
+      let sessionId = overrideSessionId ?? currentSession?.sessionId;
+      if (!sessionId) {
+        sessionId = await adapter.createSession({
+          organizationId,
+          contextId: activeContextIdRef.current,
+        });
+      }
+      if (!currentSession?.sessionId) {
+        setCurrentSession({
+          sessionId,
+          title: "New conversation",
+          updatedAt: new Date().toISOString(),
+          status: "active",
+          contextId: activeContextIdRef.current,
+        });
+      }
+
+      abortControllerRef.current?.abort();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+      activeExecutionIdRef.current = null;
 
       const userMessage = createUserMessage(trimmed);
       const assistantMessage = createAssistantMessage();

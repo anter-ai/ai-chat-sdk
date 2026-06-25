@@ -8,9 +8,13 @@ import { getArtifactRegistry } from "../../extensions/artifact-registry";
 
 interface ArtifactPreviewProps {
   artifact: Artifact;
+  /** Dispatch a follow-up user turn into the conversation (host action affordances). */
+  onSendMessage?: (text: string) => void;
+  /** True while a response is streaming — passed to custom renderers. */
+  isStreaming?: boolean;
 }
 
-export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
+export function ArtifactPreview({ artifact, onSendMessage, isStreaming }: ArtifactPreviewProps) {
   const effectiveType = artifact.previewType ?? artifact.type;
   const effectiveContent = artifact.previewContent ?? artifact.content;
 
@@ -18,7 +22,16 @@ export function ArtifactPreview({ artifact }: ArtifactPreviewProps) {
   const customRenderer = registry.get(effectiveType);
 
   if (customRenderer && customRenderer.detect(effectiveContent)) {
-    return <>{customRenderer.render(effectiveContent)}</>;
+    return (
+      <>
+        {customRenderer.render(effectiveContent, {
+          artifactId: artifact.artifactId,
+          type: effectiveType,
+          sendMessage: onSendMessage ?? (() => {}),
+          isStreaming: isStreaming ?? false,
+        })}
+      </>
+    );
   }
 
   if (effectiveType === "table") {

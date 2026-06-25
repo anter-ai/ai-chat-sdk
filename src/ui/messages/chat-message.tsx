@@ -76,6 +76,7 @@ interface ChatMessageProps {
   artifactsCtx: UseArtifactsReturn;
   sourcesCtx: UseSourcesReturn;
   onRecordClick?: (record: RecordTag) => void;
+  renderMessageFooter?: (message: ChatMessageType) => React.ReactNode;
   showSuggestions?: boolean;
   /** True when the adapter implements resolveToolApproval (cards become actionable). */
   canResolveToolApprovals?: boolean;
@@ -93,6 +94,7 @@ export function ChatMessage({
   artifactsCtx,
   sourcesCtx,
   onRecordClick,
+  renderMessageFooter,
   showSuggestions,
   canResolveToolApprovals,
   onResolveToolApproval,
@@ -188,6 +190,7 @@ export function ChatMessage({
     new Set([...(message.artifactIds ?? []), ...extractedArtifacts.map((a) => a.artifactId)]),
   );
   const hasSources = !isUser && !message.isStreaming && (message.sources?.length ?? 0) > 0;
+  const customFooter = !isUser && !message.isStreaming ? renderMessageFooter?.(message) : null;
 
   return (
     <div className={`ais-message-row ${isUser ? "ais-user" : "ais-assistant"}`}>
@@ -265,6 +268,7 @@ export function ChatMessage({
         {!isUser && !message.isStreaming && showSuggestions && message.suggestions?.length ? (
           <FollowUpSuggestions onSelect={onFollowUp} suggestions={message.suggestions} />
         ) : null}
+        {customFooter ? <div className="ais-message-custom-footer">{customFooter}</div> : null}
       </div>
     </div>
   );

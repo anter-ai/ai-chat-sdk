@@ -96,6 +96,26 @@ describe("ChatMessage", () => {
     expect(boldText).toBeInTheDocument();
   });
 
+  it("renders a custom footer for assistant messages", () => {
+    const message = {
+      id: "3b",
+      role: "assistant",
+      content: "A longer assistant response that can host a footer.",
+      timestamp: new Date(),
+    } as any;
+    render(
+      <ChatMessage
+        message={message}
+        onRetry={mockOnRetry}
+        onFollowUp={mockOnFollowUp}
+        artifactsCtx={mockArtifactsCtx}
+        sourcesCtx={mockSourcesCtx}
+        renderMessageFooter={() => <div>Footer</div>}
+      />,
+    );
+    expect(screen.getByText("Footer")).toBeInTheDocument();
+  });
+
   it("renders error message and retry button", () => {
     const message = {
       id: "4",

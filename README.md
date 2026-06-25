@@ -1536,11 +1536,63 @@ const adapter = new AnterAdapter({
   organizationId: "org-123",
   projectId: "proj-456", // Optional — targets a specific project's agent
   agentId: "agent-789", // Optional — pairs with projectId
-  getAuthHeaders: async () => ({
-    Authorization: `Bearer ${await getToken()}`,
-  }),
+  getAuthHeaders: async () => {
+    const token = await getApiToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  },
 });
 ```
+
+### Wiring `getAuthHeaders` to your host app's auth
+
+`getAuthHeaders` is called before every API request. The simplest framework-agnostic pattern is to expose a module-level setter and getter so the adapter can reach the host app's token provider without importing auth libraries directly:
+
+```typescript
+// lib/api-token.ts
+let tokenProvider: (() => Promise<string | null>) | null = null;
+
+export function setApiTokenProvider(fn: () => Promise<string | null>) {
+  tokenProvider = fn;
+}
+
+export function getApiToken(): Promise<string | null> {
+  return tokenProvider ? tokenProvider().catch(() => null) : Promise.resolve(null);
+}
+```
+
+```typescript
+// auth/provider.tsx — call this once when auth initialises
+import { setApiTokenProvider } from "../lib/api-token";
+
+// Example: MSAL (Azure AD)
+setApiTokenProvider(() => acquireAccessToken(msalInstance, account));
+
+// Example: Supabase
+setApiTokenProvider(async () => {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
+});
+
+// Example: static dev token
+setApiTokenProvider(async () => process.env.DEV_TOKEN ?? null);
+```
+
+```typescript
+// chat/adapter.ts
+import { AnterAdapter } from "@anter/anter-adapter";
+import { getApiToken } from "../lib/api-token";
+
+export const adapter = new AnterAdapter({
+  baseUrl: "/api/chat",
+  organizationId: "org-123",
+  getAuthHeaders: async () => {
+    const token = await getApiToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  },
+});
+```
+
+This pattern works in any framework (Next.js, Vite, Remix, plain React) without importing auth libraries into the adapter file. The same pattern applies when writing a custom `ChatAdapter` from scratch.
 
 See the [`@anter/anter-adapter` README](../packages/anter-adapter/README.md) for full documentation including constructor options, auth wiring patterns, routing details, and Anter-specific methods.
 

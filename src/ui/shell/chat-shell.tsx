@@ -57,6 +57,8 @@ interface ChatShellProps {
   emptyState?: React.ReactNode;
   /** Tip announcements shown randomly in the composer. Defaults to none. */
   tips?: ComposerAnnouncement[];
+  /** Callback triggered when clicking the global Artifacts sidebar item. When provided, overrides local toggle. */
+  onArtifactsClick?: () => void;
 }
 
 export function ChatShell({
@@ -70,6 +72,7 @@ export function ChatShell({
   onSessionChange,
   emptyState,
   tips = [],
+  onArtifactsClick,
 }: ChatShellProps) {
   const { config } = useChatContext();
   const artifactsCtx = useArtifacts();
@@ -92,6 +95,7 @@ export function ChatShell({
         onSessionChange={onSessionChange}
         emptyState={emptyState}
         tips={tips}
+        onArtifactsClick={onArtifactsClick}
       />
     </ChatStateProvider>
   );
@@ -119,6 +123,7 @@ function ChatShellContent({
   enableFileUpload,
   emptyState,
   tips = [],
+  onArtifactsClick,
 }: ChatShellContentProps) {
   const {
     sendMessage,
@@ -329,10 +334,12 @@ function ChatShellContent({
         onToggle={() => setSidebarOpen((prev) => !prev)}
         onViewChange={handleViewChange}
         artifactPanelOpen={artifactsCtx.panelState.isOpen}
-        onToggleArtifacts={() =>
-          artifactsCtx.panelState.isOpen
-            ? artifactsCtx.closePanel()
-            : artifactsCtx.openArtifact(Array.from(artifactsCtx.artifacts.keys())[0] ?? "")
+        onToggleArtifacts={
+          onArtifactsClick ||
+          (() =>
+            artifactsCtx.panelState.isOpen
+              ? artifactsCtx.closePanel()
+              : artifactsCtx.openArtifact(Array.from(artifactsCtx.artifacts.keys())[0] ?? ""))
         }
       />
 

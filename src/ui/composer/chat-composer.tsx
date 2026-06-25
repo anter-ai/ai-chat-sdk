@@ -208,12 +208,18 @@ export function ChatComposer({
     setPendingFiles([]);
   };
 
-  const selectSlashCommand = (commandName: string) => {
+  const selectSlashCommand = (commandName: string, preventSubmit = false) => {
     const command = getSlashCommandRegistry().find((c) => c.name === commandName);
     if (command) {
       command.onSelect({
         setValue,
-        submit: (v?: string) => submit(v ?? commandName),
+        submit: (v?: string) => {
+          if (preventSubmit) {
+            setValue(v ?? commandName);
+          } else {
+            submit(v ?? commandName);
+          }
+        },
       });
     } else {
       setValue(commandName);
@@ -223,6 +229,8 @@ export function ChatComposer({
     // Enter re-selects instead of submitting — making the command appear to need a second
     // attempt. A command that submits from onSelect already closed it; this is idempotent.
     setShowSlashMenu(false);
+    // Return focus to composer input box so the user can immediately keep typing or press Enter
+    textareaRef.current?.focus();
   };
 
   const contextTag = activeContextLabel ?? activeContextId;
@@ -247,7 +255,7 @@ export function ChatComposer({
             onActiveIndexChange={setActiveSlashIndex}
             onClose={() => setShowSlashMenu(false)}
             onItemsChange={setSlashMenuItems}
-            onSelect={selectSlashCommand}
+            onSelect={(cmd) => selectSlashCommand(cmd, true)}
             query={value.slice(1)}
           />
         ) : null}
@@ -295,7 +303,7 @@ export function ChatComposer({
                 event.preventDefault();
                 const selectedCommand = slashMenuItems[activeSlashIndex];
                 if (selectedCommand) {
-                  selectSlashCommand(selectedCommand);
+                  selectSlashCommand(selectedCommand, true);
                 }
                 return;
               }

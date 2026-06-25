@@ -96,7 +96,7 @@ export function ChatSidebar({
   }, [sessions, currentSessionId, currentSession, setCurrentSession, isStreaming]);
 
   useEffect(() => {
-    const persisted = window.localStorage.getItem("ais-sidebar-collapsed");
+    const persisted = window.localStorage.getItem("ais-chat-sidebar-collapsed");
     if (persisted === "1") {
       setCollapsed(true);
       return;
@@ -120,7 +120,7 @@ export function ChatSidebar({
   }, [isOpen]);
 
   useEffect(() => {
-    window.localStorage.setItem("ais-sidebar-collapsed", collapsed ? "1" : "0");
+    window.localStorage.setItem("ais-chat-sidebar-collapsed", collapsed ? "1" : "0");
   }, [collapsed]);
 
   const topNavItems = useMemo(

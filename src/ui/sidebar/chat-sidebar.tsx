@@ -1,7 +1,16 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { FileText, MessageCircle, PanelLeftClose, PanelLeftOpen, Plus, Search } from "lucide-react";
+import {
+  ExternalLink,
+  FileText,
+  MessageCircle,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plus,
+  Search,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useChatContext } from "../../headless/context/chat-provider";
 import { useConversationHistory } from "../../headless/hooks/use-conversation-history";
 import { useChat } from "../../headless/hooks/use-chat";
@@ -10,6 +19,31 @@ import { ConfirmDialog } from "../shared/confirm-dialog";
 
 export type ChatView = "chat" | "recents";
 const SIDEBAR_OVERLAY_BREAKPOINT_PX = 1024;
+
+/**
+ * A host-supplied navigation item appended to the sidebar rail. Keeps the SDK
+ * agnostic: the consumer owns the label, icon, and click behaviour, so any
+ * product can wire its own destinations (e.g. a "back to host app" link)
+ * without the SDK encoding domain-specific navigation.
+ */
+export interface SidebarNavLink {
+  /** Stable identifier, used as the React key. */
+  id: string;
+  /** Visible label and accessible name. */
+  label: string;
+  /** Icon component; defaults to a generic external-link glyph when omitted. */
+  icon?: LucideIcon;
+  /** Invoked when the item is clicked. */
+  onClick: () => void;
+}
+
+interface SidebarNavItem {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  active?: boolean;
+  action: () => void;
+}
 
 interface ChatSidebarProps {
   onNewConversation?: () => void;
@@ -23,6 +57,10 @@ interface ChatSidebarProps {
    *  afterwards — this is a one-time nudge, not a permanent lock. REQ-02/04 */
   artifactPanelOpen?: boolean;
   onToggleArtifacts?: () => void;
+  /** Hide the built-in Artifacts nav item (e.g. when the host has no use for it). */
+  hideArtifactsLink?: boolean;
+  /** Custom nav items appended after the built-in items. */
+  sidebarLinks?: SidebarNavLink[];
 }
 
 export function ChatSidebar({
@@ -34,6 +72,8 @@ export function ChatSidebar({
   onViewChange,
   artifactPanelOpen,
   onToggleArtifacts,
+  hideArtifactsLink = false,
+  sidebarLinks = [],
 }: ChatSidebarProps) {
   const { adapter, organizationId, currentSession, setCurrentSession } = useChatContext();
   const { sessions, isLoading, refresh, deleteSession } = useConversationHistory();
@@ -123,8 +163,8 @@ export function ChatSidebar({
     window.localStorage.setItem("ais-chat-sidebar-collapsed", collapsed ? "1" : "0");
   }, [collapsed]);
 
-  const topNavItems = useMemo(
-    () => [
+  const topNavItems = useMemo<SidebarNavItem[]>(() => {
+    const items: SidebarNavItem[] = [
       {
         id: "new-chat",
         label: "New Chat",
@@ -149,7 +189,10 @@ export function ChatSidebar({
         active: activeView === "recents",
         action: () => onViewChange?.("recents"),
       },
-      {
+    ];
+
+    if (!hideArtifactsLink) {
+      items.push({
         id: "artifacts",
         label: "Artifacts",
         icon: FileText,
@@ -157,12 +200,30 @@ export function ChatSidebar({
         action: () => {
           onToggleArtifacts?.();
         },
-      },
-    ],
-    [onNewConversation, onViewChange, activeView, onToggleArtifacts, artifactPanelOpen],
-  );
+      });
+    }
 
-  function renderRailButton(item: (typeof topNavItems)[number]) {
+    for (const link of sidebarLinks) {
+      items.push({
+        id: link.id,
+        label: link.label,
+        icon: link.icon ?? ExternalLink,
+        action: link.onClick,
+      });
+    }
+
+    return items;
+  }, [
+    onNewConversation,
+    onViewChange,
+    activeView,
+    onToggleArtifacts,
+    artifactPanelOpen,
+    hideArtifactsLink,
+    sidebarLinks,
+  ]);
+
+  function renderRailButton(item: SidebarNavItem) {
     const Icon = item.icon;
     return (
       <button

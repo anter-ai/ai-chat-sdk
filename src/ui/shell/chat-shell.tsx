@@ -19,7 +19,7 @@ import { CommandPalette } from "../command-palette/command-palette";
 import { ChatComposer } from "../composer/chat-composer";
 import { ChatMessages } from "../messages/chat-messages";
 import { ChatSidebar } from "../sidebar/chat-sidebar";
-import type { ChatView } from "../sidebar/chat-sidebar";
+import type { ChatView, SidebarNavLink } from "../sidebar/chat-sidebar";
 import { RecentsPage } from "../recents/recents-page";
 import type { SessionWithMessages } from "../../headless/types/session";
 import type { ComposerAnnouncement } from "../../headless/types/chat";
@@ -60,6 +60,10 @@ interface ChatShellProps {
   tips?: ComposerAnnouncement[];
   /** Callback triggered when clicking the global Artifacts sidebar item. When provided, overrides local toggle. */
   onArtifactsClick?: () => void;
+  /** Hide the built-in Artifacts sidebar item. */
+  hideArtifactsLink?: boolean;
+  /** Custom nav items appended to the sidebar rail. The host supplies each item's label, icon, and click handler. */
+  sidebarLinks?: SidebarNavLink[];
 }
 
 export function ChatShell({
@@ -75,6 +79,8 @@ export function ChatShell({
   emptyState,
   tips = [],
   onArtifactsClick,
+  hideArtifactsLink,
+  sidebarLinks,
 }: ChatShellProps) {
   const { config } = useChatContext();
   const artifactsCtx = useArtifacts();
@@ -99,6 +105,8 @@ export function ChatShell({
         emptyState={emptyState}
         tips={tips}
         onArtifactsClick={onArtifactsClick}
+        hideArtifactsLink={hideArtifactsLink}
+        sidebarLinks={sidebarLinks}
       />
     </ChatStateProvider>
   );
@@ -128,6 +136,8 @@ function ChatShellContent({
   emptyState,
   tips = [],
   onArtifactsClick,
+  hideArtifactsLink,
+  sidebarLinks,
 }: ChatShellContentProps) {
   const {
     sendMessage,
@@ -345,6 +355,8 @@ function ChatShellContent({
               ? artifactsCtx.closePanel()
               : artifactsCtx.openArtifact(Array.from(artifactsCtx.artifacts.keys())[0] ?? ""))
         }
+        hideArtifactsLink={hideArtifactsLink}
+        sidebarLinks={sidebarLinks}
       />
 
       <ResizablePanelGroup

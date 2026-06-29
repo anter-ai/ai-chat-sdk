@@ -24,4 +24,6 @@ export * from "./record-panel/record-panel";
 export * from "./sources-panel/sources-panel";
 export * from "./sidebar/chat-sidebar";
 export * from "./widget/chat-widget";
+export * from "./sidepanel/chat-sidepanel";
+export * from "./sidepanel/chat-sidepanel-layout";
 export { ChatMessage as ChatMessageBubble } from "./messages/chat-message";

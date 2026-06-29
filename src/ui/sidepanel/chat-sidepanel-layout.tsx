@@ -32,6 +32,8 @@ export interface ChatSidepanelLayoutProps {
 
 const SIDEBAR_OVERLAY_BREAKPOINT_PX = 1024;
 
+const clampSize = (value: number, lo: number, hi: number) => Math.min(Math.max(value, lo), hi);
+
 const getSafeLayout = (storageKey: string): Record<string, number> | undefined => {
   if (typeof window === "undefined") return undefined;
   try {
@@ -160,15 +162,21 @@ export function ChatSidepanelLayout({
     }
   }, [isOpen, isOverlayViewport]);
 
-  const sidepanelSize = savedLayout?.["sidepanel"] ?? defaultWidth;
-  const hostSize = savedLayout?.["host"] ?? 100 - defaultWidth;
+  // Sanitize the persisted size against the constraints so a degenerate stored
+  // value cannot seed a broken initial split. The vendored react-resizable-panels
+  // interprets *bare numbers* as pixels (see ge()/zt() in the lib: a numeric
+  // styleProp resolves to "px"), so all sizes MUST be passed as "%" strings to be
+  // treated as percentages — otherwise e.g. defaultSize 30 means 30px (~2-5% of a
+  // wide viewport), which collapses the panel to a sliver and makes minSize="20px"
+  // unable to clamp it back up.
+  const sidepanelSize = clampSize(savedLayout?.["sidepanel"] ?? defaultWidth, minWidth, maxWidth);
 
   // Single DOM tree keeps React node path identical to avoid state teardown during viewport resize
   return (
     <div
       className={`ais-sidepanel-layout-root ${
         isOverlayViewport ? "ais-mobile" : "ais-desktop"
-      } ${className}`}
+      } ${isOpen ? "ais-panel-open" : ""} ${className}`}
       style={{ height: "100%", width: "100%", position: "relative" }}
     >
       <ResizablePanelGroup
@@ -177,11 +185,13 @@ export function ChatSidepanelLayout({
         defaultLayout={savedLayout}
         onLayoutChanged={handleLayoutChanged}
       >
+        {/* Host pane has no defaultSize so it absorbs the remaining width: it
+            renders at 100% while the sidepanel is unmounted (closed) and at
+            (100 - sidepanel)% once the sidepanel mounts. */}
         <ResizablePanel
           id="host"
           key="host"
-          defaultSize={hostSize}
-          minSize={100 - maxWidth}
+          minSize={`${100 - maxWidth}%`}
           className="ais-sidepanel-host-pane"
         >
           {children}
@@ -196,9 +206,9 @@ export function ChatSidepanelLayout({
           <ResizablePanel
             id="sidepanel"
             key="sidepanel"
-            defaultSize={sidepanelSize}
-            minSize={minWidth}
-            maxSize={maxWidth}
+            defaultSize={`${sidepanelSize}%`}
+            minSize={`${minWidth}%`}
+            maxSize={`${maxWidth}%`}
             className="ais-sidepanel-chat-pane"
             role={isOverlayViewport ? "dialog" : undefined}
             aria-modal={isOverlayViewport ? "true" : undefined}

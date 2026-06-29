@@ -173,33 +173,46 @@ function ChatSidepanelContent({
         </div>
       </header>
 
-      <div className="ais-sidepanel-body">
-        <ChatMessages artifactsCtx={artifactsCtx} sourcesCtx={sourcesCtx} emptyState={emptyState} />
-        {isAnyPanelOpen && (
-          <div className="ais-sidepanel-drawer">
-            {showSourcesPanel && <SourcesPanel sourcesCtx={sourcesCtx} />}
-            {showFilesPanel && <FilesPanel filesCtx={filesCtx} />}
-            {showArtifactPanel && (
-              <ArtifactPanel
-                artifactsCtx={artifactsCtx}
-                onExportArtifact={onExportArtifact}
-                onSendMessage={(text) => void sendMessage(text)}
-                isStreaming={isStreaming}
-              />
-            )}
-          </div>
-        )}
-      </div>
+      {/* The body and composer share one flex column so the empty-state
+          centering (`.ais-sidepanel-main:has(.ais-messages--empty)`) can group
+          the greeting and composer together, while the header stays pinned
+          above as a sibling — mirroring the full ChatShell layout. When a drawer
+          (sources/files/artifacts) is open it overlays the body, so the body
+          must fill the area; `ais-has-drawer` disables the empty-state collapse
+          that would otherwise shrink the overlay to a small floating box. */}
+      <div className={`ais-sidepanel-main ${isAnyPanelOpen ? "ais-has-drawer" : ""}`}>
+        <div className="ais-sidepanel-body">
+          <ChatMessages
+            artifactsCtx={artifactsCtx}
+            sourcesCtx={sourcesCtx}
+            emptyState={emptyState}
+          />
+          {isAnyPanelOpen && (
+            <div className="ais-sidepanel-drawer">
+              {showSourcesPanel && <SourcesPanel sourcesCtx={sourcesCtx} />}
+              {showFilesPanel && <FilesPanel filesCtx={filesCtx} />}
+              {showArtifactPanel && (
+                <ArtifactPanel
+                  artifactsCtx={artifactsCtx}
+                  onExportArtifact={onExportArtifact}
+                  onSendMessage={(text) => void sendMessage(text)}
+                  isStreaming={isStreaming}
+                />
+              )}
+            </div>
+          )}
+        </div>
 
-      <ChatComposer
-        isStreaming={isStreaming}
-        onStop={stopStreaming}
-        resumeState={resumeState}
-        onResume={() => void resumeRun()}
-        onSendMessage={(message, attachedFileIds, sessionId, extraContextVariables) => {
-          void sendMessage(message, attachedFileIds, sessionId, extraContextVariables);
-        }}
-      />
+        <ChatComposer
+          isStreaming={isStreaming}
+          onStop={stopStreaming}
+          resumeState={resumeState}
+          onResume={() => void resumeRun()}
+          onSendMessage={(message, attachedFileIds, sessionId, extraContextVariables) => {
+            void sendMessage(message, attachedFileIds, sessionId, extraContextVariables);
+          }}
+        />
+      </div>
     </div>
   );
 }

@@ -5262,9 +5262,24 @@
    Side Panel & Side Panel Layout (Phase 1)
    ========================================================================== */
 
+/* The host wraps <ChatSidepanel> in a <ChatProvider>, which renders an extra
+   intermediate `[data-chat-provider]` <div>. Left as height:auto, that div
+   collapses the `height:100%` chain between the resizable pane and the sidepanel
+   root, so the root grows to its content height — the panel isn't full-height,
+   the header scrolls away, and the composer is pushed past the viewport. Force
+   the wrapper to fill the pane as a flex column so the root can flex to height. */
+.ais-sidepanel-chat-pane > [data-chat-provider="ai-chat-sdk"] {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .ais-sidepanel-root {
+  flex: 1;
   height: 100%;
   width: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: var(--chat-bg);
@@ -5273,16 +5288,20 @@
   box-sizing: border-box;
 }
 
-/* Header */
+/* Header — stays pinned at the top (flex-shrink: 0) while the messages scroll
+   beneath it. No hard divider; the message list fades out under it via
+   `.ais-messages-blur-top`, matching the widget and full-chat shell so content
+   reads as scrolling behind the header. */
 .ais-sidepanel-header {
   padding: 11px 14px;
-  border-bottom: 1px solid var(--chat-border);
+  border-bottom: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
   min-height: 58px;
   background: var(--chat-bg);
   flex-shrink: 0;
+  z-index: 2;
   box-sizing: border-box;
 }
 
@@ -5403,7 +5422,20 @@
   border: 1.5px solid var(--chat-bg);
 }
 
-/* Body & Composer placement */
+/* Body & Composer placement.
+   `.ais-sidepanel-main` is the flex column holding the message body and the
+   composer (the header sits above as a sibling). In the default/non-empty state
+   the body grows (flex: 1) and the composer is pinned to the bottom via its base
+   `margin-top: auto`. */
+.ais-sidepanel-main {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--chat-bg);
+}
+
 .ais-sidepanel-body {
   position: relative;
   min-height: 0;
@@ -5420,6 +5452,32 @@
   flex: 1;
 }
 
+/* Empty state: collapse the body to its content and vertically center the
+   greeting + composer as a single group (mirrors the ChatShell behaviour). The
+   `:not(.ais-has-drawer)` guard keeps the body filling the area when a drawer
+   overlay is open, so the absolutely-positioned drawer isn't shrunk to the
+   collapsed empty body. */
+.ais-sidepanel-main:has(.ais-messages--empty):not(.ais-has-drawer) {
+  justify-content: center;
+}
+.ais-sidepanel-main:has(.ais-messages--empty):not(.ais-has-drawer) .ais-sidepanel-body {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+.ais-sidepanel-main:has(.ais-messages--empty):not(.ais-has-drawer) .ais-messages--empty {
+  flex: 0 0 auto;
+  overflow: visible;
+  min-height: 0;
+}
+.ais-sidepanel-main:has(.ais-messages--empty):not(.ais-has-drawer) .ais-empty-state {
+  height: auto;
+}
+.ais-sidepanel-main:has(.ais-messages--empty):not(.ais-has-drawer) .ais-composer {
+  position: relative;
+  bottom: unset;
+  margin-top: 0;
+}
+
 /* Overlay Drawers inside panel */
 .ais-sidepanel-drawer {
   position: absolute;
@@ -5429,6 +5487,10 @@
   animation: ais-sidepanel-drawer-in 0.25s cubic-bezier(0.22, 1, 0.36, 1);
   display: flex;
   flex-direction: column;
+  /* Symmetric inset gutter so the panel card reads as floating; the horizontal
+     inset matches the composer's so their edges line up. */
+  padding: 12px 16px;
+  box-sizing: border-box;
 }
 
 @keyframes ais-sidepanel-drawer-in {
@@ -5440,11 +5502,22 @@
   }
 }
 
+/* The Files/Sources/Artifacts panels are authored as floating cards for the
+   full shell (`margin: 0 24px`, fixed width/height tied to shell vars). Inside
+   the sidepanel drawer they must instead fill the drawer's padded content box,
+   so reset their box model completely — otherwise the leftover `margin: 0 24px`
+   combined with `width: 100%` pushes the card off the right edge. The drawer's
+   own padding provides the symmetric inset gutter. */
 .ais-sidepanel-drawer > aside {
-  border-left: none !important;
+  box-sizing: border-box;
+  margin: 0 !important;
   width: 100% !important;
+  max-width: none !important;
   height: 100% !important;
+  max-height: none !important;
   flex: 1;
+  border-left: none !important;
+  border-radius: 16px;
   animation: none !important;
   transform: none !important;
 }
@@ -5471,6 +5544,30 @@
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--chat-border);
+}
+
+/* Split-view card treatment: when the chat panel is open on desktop, the host
+   app reads as a distinct floating card (border + rounded corners + soft shadow)
+   separated from the chat pane by a gutter that reveals the page background.
+   Scoped to the open desktop state so the host fills the viewport normally when
+   the panel is closed (and so the mobile overlay drawer is unaffected). */
+.ais-sidepanel-layout-root.ais-desktop.ais-panel-open {
+  background: color-mix(in oklab, var(--chat-bg) 94%, var(--message-ai-text));
+}
+
+.ais-sidepanel-layout-root.ais-desktop.ais-panel-open .ais-sidepanel-host-pane {
+  margin: 8px;
+  border: 1px solid var(--chat-border);
+  border-radius: 12px;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.06),
+    0 10px 28px rgba(0, 0, 0, 0.06);
+}
+
+/* The chat pane stays full-bleed against the viewport edge; the gutter alone
+   separates it from the host card, so its own divider border is redundant. */
+.ais-sidepanel-layout-root.ais-desktop.ais-panel-open .ais-sidepanel-chat-pane {
+  border-left: none;
 }
 
 .ais-sidepanel-resize-handle {

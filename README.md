@@ -563,6 +563,85 @@ If you prefer to style or disable the default trigger's disk-like orbit animatio
 
 ---
 
+### `<ChatSidepanel>`
+
+A compact, dense side panel chat container designed for integration in split-screen grids or sidebar interfaces. It inherits its height from its parent (`height: 100%`) and internally runs its own state scope.
+
+```tsx
+import { ChatSidepanel } from "@anter/ai-chat-sdk";
+
+<ChatSidepanel
+  title="AI Sidekick"
+  subtitle="Context-aware assistant"
+  onClose={() => setIsPanelOpen(false)}
+  fullChatUrl={(sessionId) => `/chat/${sessionId ?? ""}`}
+  onNavigate={(url) => router.push(url)}
+  onExportArtifact={async (id) => {
+    await myApi.save(id);
+  }}
+  emptyState={<MyWelcomeScreen />}
+/>;
+```
+
+| Prop               | Type                                    | Default                      | Description                                                           |
+| ------------------ | --------------------------------------- | ---------------------------- | --------------------------------------------------------------------- |
+| `title`            | `string`                                | `orgLabel ?? "AI Assistant"` | Header title. Falls back to `orgLabel` set by the provider.           |
+| `subtitle`         | `string`                                | —                            | Optional header subtitle line                                         |
+| `onClose`          | `() => void`                            | —                            | Click handler for the `X` button; hides the close button when omitted |
+| `fullChatUrl`      | `(sessionId: string \| null) => string` | —                            | Builds the URL for "Open full chat" navigation.                       |
+| `onNavigate`       | `(url: string) => void`                 | —                            | Navigation callback triggered on click of full chat link.             |
+| `onExportArtifact` | `(artifactId: string) => Promise<void>` | —                            | Callback to save an artifact; hides export action when omitted.       |
+| `emptyState`       | `React.ReactNode`                       | —                            | Custom component shown when conversation is empty.                    |
+| `className`        | `string`                                | —                            | Optional styling override class name                                  |
+
+---
+
+### `<ChatSidepanelLayout>`
+
+A pre-configured viewport splitter that wraps host content and splits the viewport horizontally using resizable panels. Under viewport widths `<= 1024px`, it automatically transitions to a slide-in overlay drawer with a backdrop.
+
+```tsx
+import { ChatSidepanelLayout, ChatSidepanel } from "@anter/ai-chat-sdk";
+
+<ChatSidepanelLayout
+  isOpen={isPanelOpen}
+  onClose={() => setIsPanelOpen(false)}
+  defaultWidth={30}
+  minWidth={20}
+  maxWidth={50}
+  storageKey="my-sidepanel-layout"
+  sidepanel={
+    <ChatSidepanel
+      onClose={() => setIsPanelOpen(false)}
+      fullChatUrl={(id) => `/chat/${id}`}
+      onNavigate={(url) => router.push(url)}
+    />
+  }
+>
+  <div style={{ height: "100%", padding: "20px" }}>
+    <h1>My Application Content</h1>
+    <button onClick={() => setIsPanelOpen(true)}>Open Assistant</button>
+  </div>
+</ChatSidepanelLayout>;
+```
+
+| Prop           | Type              | Default                  | Description                                                                     |
+| -------------- | ----------------- | ------------------------ | ------------------------------------------------------------------------------- |
+| `children`     | `React.ReactNode` | —                        | The main host application content (left pane)                                   |
+| `sidepanel`    | `React.ReactNode` | —                        | The side panel content, typically `<ChatSidepanel>` (right pane)                |
+| `isOpen`       | `boolean`         | —                        | Controls panel expansion state                                                  |
+| `onClose`      | `() => void`      | —                        | Invoked when the panel is collapsed via layout actions or mobile backdrop click |
+| `defaultWidth` | `number`          | `30`                     | Percentage-based (0-100) default width of the panel                             |
+| `minWidth`     | `number`          | `20`                     | Percentage-based (0-100) minimum width of the panel                             |
+| `maxWidth`     | `number`          | `50`                     | Percentage-based (0-100) maximum width of the panel                             |
+| `storageKey`   | `string`          | `"ais-sidepanel-layout"` | LocalStorage key to save the user's customized panel width                      |
+| `className`    | `string`          | —                        | Optional CSS class name for the wrapper                                         |
+
+> [!NOTE]
+> Ensure that both `<ChatSidepanelLayout>` and `<ChatSidepanel>` are placed inside a parent `<ChatProvider>` to inherit the required theming variables. Both panels assume their parent restricts height appropriately (e.g. `height: 100%` or bounded viewport height).
+
+---
+
 ### `<ChatEmptyState>`
 
 The default empty state shown when no messages exist. Pass it via `emptyState` on `ChatShell` / `ChatWidget`, or render it standalone in a custom shell.

@@ -28,6 +28,8 @@ export interface ChatSidepanelLayoutProps {
   storageKey?: string;
   /** Optional classes for the outer wrapper. */
   className?: string;
+  /** Optional accessibility label for the side panel. Defaults to "AI Assistant Panel". */
+  ariaLabel?: string;
 }
 
 const SIDEBAR_OVERLAY_BREAKPOINT_PX = 1024;
@@ -54,17 +56,23 @@ export function ChatSidepanelLayout({
   maxWidth = 50,
   storageKey = "ais-sidepanel-layout",
   className = "",
+  ariaLabel = "AI Assistant Panel",
 }: ChatSidepanelLayoutProps) {
-  // Lazily detect mobile viewport
+  // Lazily detect mobile viewport and track width for dynamic minSize
   const [isOverlayViewport, setIsOverlayViewport] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.innerWidth <= SIDEBAR_OVERLAY_BREAKPOINT_PX;
+  });
+  const [viewportWidth, setViewportWidth] = useState(() => {
+    if (typeof window === "undefined") return 1200;
+    return window.innerWidth;
   });
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const onResize = () => {
       setIsOverlayViewport(window.innerWidth <= SIDEBAR_OVERLAY_BREAKPOINT_PX);
+      setViewportWidth(window.innerWidth);
     };
     onResize();
     window.addEventListener("resize", onResize);
@@ -169,7 +177,16 @@ export function ChatSidepanelLayout({
   // treated as percentages — otherwise e.g. defaultSize 30 means 30px (~2-5% of a
   // wide viewport), which collapses the panel to a sliver and makes minSize="20px"
   // unable to clamp it back up.
-  const sidepanelSize = clampSize(savedLayout?.["sidepanel"] ?? defaultWidth, minWidth, maxWidth);
+  const computedMinSize =
+    viewportWidth > 0
+      ? Math.min(maxWidth, Math.max(minWidth, (320 / viewportWidth) * 100))
+      : minWidth;
+
+  const sidepanelSize = clampSize(
+    savedLayout?.["sidepanel"] ?? defaultWidth,
+    computedMinSize,
+    maxWidth,
+  );
 
   // Single DOM tree keeps React node path identical to avoid state teardown during viewport resize
   return (
@@ -207,12 +224,12 @@ export function ChatSidepanelLayout({
             id="sidepanel"
             key="sidepanel"
             defaultSize={`${sidepanelSize}%`}
-            minSize={`${minWidth}%`}
+            minSize={`${computedMinSize}%`}
             maxSize={`${maxWidth}%`}
             className="ais-sidepanel-chat-pane"
             role={isOverlayViewport ? "dialog" : undefined}
             aria-modal={isOverlayViewport ? "true" : undefined}
-            aria-label={isOverlayViewport ? "AI Assistant Panel" : undefined}
+            aria-label={isOverlayViewport ? ariaLabel : undefined}
             tabIndex={isOverlayViewport ? -1 : undefined}
             elementRef={sidepanelRef}
             onKeyDown={handleMobileKeyDown}

@@ -5293,6 +5293,7 @@
    `.ais-messages-blur-top`, matching the widget and full-chat shell so content
    reads as scrolling behind the header. */
 .ais-sidepanel-header {
+  position: relative;
   padding: 11px 14px;
   border-bottom: none;
   display: flex;
@@ -5301,7 +5302,7 @@
   min-height: 58px;
   background: var(--chat-bg);
   flex-shrink: 0;
-  z-index: 2;
+  z-index: 100;
   box-sizing: border-box;
 }
 
@@ -5319,9 +5320,6 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(140deg, #005ce6 0%, #00a9cf 100%);
-  color: #ffffff;
-  box-shadow: 0 8px 16px rgba(1, 99, 210, 0.35);
   flex-shrink: 0;
 }
 
@@ -5352,7 +5350,8 @@
   gap: 8px;
 }
 
-.ais-sidepanel-header-actions button {
+.ais-sidepanel-header-actions > button,
+.ais-sidepanel-recents-menu-wrapper > button {
   position: relative;
   width: 30px;
   height: 30px;
@@ -5372,33 +5371,36 @@
     border-color 0.2s;
 }
 
-.ais-sidepanel-header-actions button:hover {
+.ais-sidepanel-header-actions > button:hover,
+.ais-sidepanel-recents-menu-wrapper > button:hover {
   transform: translateY(-1px);
   background: color-mix(in oklab, var(--chat-bg) 88%, var(--chat-accent));
   color: var(--chat-accent);
   border-color: var(--chat-accent);
 }
 
-.ais-sidepanel-header-actions button:focus-visible {
+.ais-sidepanel-header-actions > button:focus-visible,
+.ais-sidepanel-recents-menu-wrapper > button:focus-visible {
   outline: 2px solid var(--chat-accent);
   outline-offset: 1px;
 }
 
-.ais-sidepanel-header-actions button.is-disabled {
+.ais-sidepanel-header-actions > button.is-disabled {
   opacity: 0.4;
   cursor: not-allowed;
   background: transparent;
   border-color: var(--chat-border);
 }
 
-.ais-sidepanel-header-actions button.is-disabled:hover {
+.ais-sidepanel-header-actions > button.is-disabled:hover {
   transform: none;
   background: transparent;
   color: var(--chat-muted);
   border-color: var(--chat-border);
 }
 
-.ais-sidepanel-header-actions button.is-active {
+.ais-sidepanel-header-actions > button.is-active,
+.ais-sidepanel-recents-menu-wrapper > button.is-active {
   background: color-mix(in oklab, var(--chat-bg) 85%, var(--chat-accent));
   color: var(--chat-accent);
   border-color: var(--chat-accent);
@@ -5629,4 +5631,150 @@
   to {
     transform: translateX(0);
   }
+}
+
+/* Recent Chats Dropdown in Sidepanel Header */
+.ais-sidepanel-recents-menu-wrapper {
+  position: relative;
+}
+
+.ais-sidepanel-recents-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 240px;
+  max-height: 320px;
+  background: var(--chat-bg);
+  border: 1px solid var(--chat-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ais-sidepanel-recents-dropdown-header {
+  padding: 8px 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--chat-muted);
+  border-bottom: 1px solid var(--chat-border);
+  background: color-mix(in oklab, var(--chat-bg) 98%, var(--chat-accent));
+}
+
+.ais-sidepanel-recents-dropdown-list {
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ais-sidepanel-recents-dropdown-item {
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--message-ai-text);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ais-sidepanel-recents-dropdown-item-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ais-sidepanel-recents-item-icon {
+  flex-shrink: 0;
+  color: var(--chat-muted);
+  transition: color 0.15s;
+}
+
+.ais-sidepanel-recents-item-arrow {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--chat-muted);
+}
+
+.ais-sidepanel-recents-dropdown-item:hover {
+  background: color-mix(in oklab, var(--chat-bg) 95%, var(--chat-accent));
+  color: var(--chat-accent);
+}
+
+.ais-sidepanel-recents-dropdown-item:hover .ais-sidepanel-recents-item-icon {
+  color: var(--chat-accent);
+}
+
+.ais-sidepanel-recents-dropdown-item.is-active {
+  background: color-mix(in oklab, var(--chat-bg) 92%, var(--chat-accent));
+  color: var(--chat-accent);
+  font-weight: 500;
+}
+
+.ais-sidepanel-recents-dropdown-item.is-active .ais-sidepanel-recents-item-icon {
+  color: var(--chat-accent);
+}
+
+.ais-sidepanel-recents-dropdown-item.is-more {
+  display: flex;
+  align-items: center;
+}
+
+.ais-sidepanel-recents-dropdown-item.is-action {
+  font-weight: 500;
+}
+
+.ais-sidepanel-recents-dropdown-divider {
+  height: 1px;
+  background: var(--chat-border);
+  margin: 4px 0;
+}
+
+.ais-sidepanel-recents-dropdown-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px;
+  background: color-mix(in oklab, var(--chat-bg) 98%, var(--chat-accent));
+  border: none;
+  border-bottom: 1px solid var(--chat-border);
+  color: var(--chat-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background-color 0.15s;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.ais-sidepanel-recents-dropdown-back-btn:hover {
+  color: var(--message-ai-text);
+  background: color-mix(in oklab, var(--chat-bg) 95%, var(--chat-accent));
+}
+
+.ais-sidepanel-recents-dropdown-loading,
+.ais-sidepanel-recents-dropdown-empty {
+  padding: 12px;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--chat-muted);
 }

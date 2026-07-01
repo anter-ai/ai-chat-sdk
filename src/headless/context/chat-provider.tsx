@@ -11,7 +11,7 @@ import type {
 } from "../types/config";
 import type { ChatPlugins } from "../types/plugins";
 import type { Session } from "../types/session";
-import type { ComposerAnnouncement } from "../types/chat";
+import type { ComposerAnnouncement, ContextReference } from "../types/chat";
 import { defaultStrings } from "../types/config";
 
 interface ChatContextValue {
@@ -28,6 +28,10 @@ interface ChatContextValue {
   activeContextId?: string;
   activeContextLabel?: string;
   setActiveContext: (id: string | undefined, label?: string | undefined) => void;
+  contextReferences: ContextReference[];
+  setContextReferences: (refs: ContextReference[]) => void;
+  addContextReference: (ref: ContextReference) => void;
+  removeContextReference: (id: string) => void;
   topBanner: ComposerAnnouncement | null;
   setTopBanner: (announcement: ComposerAnnouncement | null) => void;
   bottomBanner: ComposerAnnouncement | null;
@@ -129,6 +133,23 @@ export function ChatProvider({
   const [persistentContextVariables, setPersistentContextVariablesState] = useState<
     Record<string, string>
   >({});
+  const [contextReferences, setContextReferences] = useState<ContextReference[]>([]);
+
+  const addContextReference = useCallback((ref: ContextReference) => {
+    setContextReferences((prev) => {
+      const idx = prev.findIndex((r) => r.id === ref.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = ref;
+        return next;
+      }
+      return [...prev, ref];
+    });
+  }, []);
+
+  const removeContextReference = useCallback((id: string) => {
+    setContextReferences((prev) => prev.filter((r) => r.id !== id));
+  }, []);
 
   const setActiveContext = useCallback((id: string | undefined, label?: string | undefined) => {
     setActiveContextId(id);
@@ -197,6 +218,10 @@ export function ChatProvider({
       activeContextId,
       activeContextLabel,
       setActiveContext,
+      contextReferences,
+      setContextReferences,
+      addContextReference,
+      removeContextReference,
       topBanner,
       setTopBanner,
       bottomBanner,
@@ -218,6 +243,10 @@ export function ChatProvider({
       activeContextId,
       activeContextLabel,
       setActiveContext,
+      contextReferences,
+      setContextReferences,
+      addContextReference,
+      removeContextReference,
       topBanner,
       setTopBanner,
       bottomBanner,

@@ -125,3 +125,19 @@ export interface ComposerAnnouncement {
   };
   position?: "top" | "bottom";
 }
+
+export interface ContextReference {
+  id: string;
+  label: string;
+  kind: "page" | "mention" | "manual";
+  /** A raw string token or a JSON-serializable object; serialized verbatim into the message payload. */
+  value: string | Record<string, unknown>;
+  removable?: boolean;
+}
+
+export interface MentionTarget {
+  id: string;
+  type: string;
+  label: string;
+  value?: string;
+}

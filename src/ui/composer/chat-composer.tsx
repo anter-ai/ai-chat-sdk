@@ -5,6 +5,8 @@ import { Mic, Plus, RotateCcw, SlidersHorizontal, Square } from "lucide-react";
 import { useChatContext } from "../../headless/context/chat-provider";
 import type { ResumeState } from "../../headless/types/session";
 import { SlashCommandMenu } from "./slash-command-menu";
+import { MentionMenu } from "./mention-menu";
+import type { MentionTarget } from "../../headless/types/chat";
 import { ComposerPlusMenu } from "./composer-plus-menu";
 import { ComposerToolsMenu } from "./composer-tools-menu";
 import { ComposerBanner } from "./composer-banner";
@@ -59,6 +61,9 @@ export function ChatComposer({
     setTopBanner,
     bottomBanner,
     setBottomBanner,
+    contextReferences,
+    addContextReference,
+    removeContextReference,
   } = useChatContext();
   const { enableFileUpload, enableResumeRetry } = config;
   // Show the Resume/Retry control only when idle, enabled, wired, and the backend hint
@@ -75,6 +80,9 @@ export function ChatComposer({
   const [showSlashMenu, setShowSlashMenu] = useState(false);
   const [activeSlashIndex, setActiveSlashIndex] = useState(0);
   const [slashMenuItems, setSlashMenuItems] = useState<string[]>([]);
+  const [showMentionMenu, setShowMentionMenu] = useState(false);
+  const [activeMentionIndex, setActiveMentionIndex] = useState(0);
+  const [mentionMenuItems, setMentionMenuItems] = useState<MentionTarget[]>([]);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
   const [showToolsMenu, setShowToolsMenu] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<Array<ChatSessionFileRef | UploadingFile>>([]);
@@ -196,6 +204,23 @@ export function ChatComposer({
     });
   }, [showSlashMenu, slashMenuItems]);
 
+  useEffect(() => {
+    // Mirror the slash menu: when the mention menu closes, reset the highlight and
+    // drop stale items so they don't flash on the next open. While open, clamp the
+    // active index as the filtered list shrinks.
+    if (!showMentionMenu) {
+      setActiveMentionIndex(0);
+      if (mentionMenuItems.length > 0) {
+        setMentionMenuItems([]);
+      }
+      return;
+    }
+    setActiveMentionIndex((currentIndex) => {
+      if (mentionMenuItems.length === 0) return 0;
+      return currentIndex >= mentionMenuItems.length ? mentionMenuItems.length - 1 : currentIndex;
+    });
+  }, [showMentionMenu, mentionMenuItems]);
+
   const submit = (overrideValue?: string) => {
     const message = (overrideValue ?? value).trim();
     if (!message || isStreaming) return;
@@ -205,6 +230,7 @@ export function ChatComposer({
     onSendMessage(message, fileIds.length > 0 ? fileIds : undefined);
     setValue("");
     setShowSlashMenu(false);
+    setShowMentionMenu(false);
     setPendingFiles([]);
   };
 
@@ -233,12 +259,45 @@ export function ChatComposer({
     textareaRef.current?.focus();
   };
 
-  const contextTag = activeContextLabel ?? activeContextId;
+  const selectMentionTarget = (target: MentionTarget) => {
+    addContextReference({
+      id: target.id,
+      label: target.label,
+      kind: "mention",
+      value: target.value || target.id,
+      removable: true,
+    });
+    const lastAtIdx = value.lastIndexOf("@");
+    if (lastAtIdx >= 0) {
+      setValue(value.slice(0, lastAtIdx) + `@${target.label} `);
+    } else {
+      setValue(value + `@${target.label} `);
+    }
+    setShowMentionMenu(false);
+    textareaRef.current?.focus();
+  };
+
+  const contextTags = [
+    ...(activeContextLabel || activeContextId
+      ? [{ id: "active-context", label: activeContextLabel ?? activeContextId! }]
+      : []),
+    ...contextReferences,
+  ];
 
   return (
     <div className={cn("ais-composer", className)}>
-      {contextTag && (
-        <ContextTagBar tags={[contextTag]} onRemove={() => setActiveContext(undefined)} />
+      {contextTags.length > 0 && (
+        <ContextTagBar
+          tags={contextTags.map((t) => t.label)}
+          onRemove={(idx) => {
+            const t = contextTags[idx];
+            if (t && t.id === "active-context") {
+              setActiveContext(undefined);
+            } else if (t) {
+              removeContextReference(t.id);
+            }
+          }}
+        />
       )}
 
       {topBanner && (
@@ -259,6 +318,17 @@ export function ChatComposer({
             query={value.slice(1)}
           />
         ) : null}
+        {showMentionMenu && plugins.mentionProvider ? (
+          <MentionMenu
+            activeIndex={activeMentionIndex}
+            onActiveIndexChange={setActiveMentionIndex}
+            onClose={() => setShowMentionMenu(false)}
+            onItemsChange={setMentionMenuItems}
+            onSelect={(target) => selectMentionTarget(target)}
+            query={value.split(/\s+/).pop()?.slice(1) || ""}
+            provider={plugins.mentionProvider}
+          />
+        ) : null}
         <textarea
           ref={textareaRef}
           className="ais-composer-input"
@@ -266,7 +336,12 @@ export function ChatComposer({
             const next = event.target.value;
             setValue(next);
             setActiveSlashIndex(0);
+            setActiveMentionIndex(0);
             setShowSlashMenu(config.enableSlashCommands && next.startsWith("/"));
+            if (plugins.mentionProvider) {
+              const lastWord = next.split(/\s+/).pop();
+              setShowMentionMenu(!!lastWord && lastWord.startsWith("@"));
+            }
           }}
           onCompositionEnd={() => setIsComposing(false)}
           onCompositionStart={() => setIsComposing(true)}
@@ -275,6 +350,12 @@ export function ChatComposer({
               event.preventDefault();
               event.stopPropagation();
               setShowSlashMenu(false);
+              return;
+            }
+            if (showMentionMenu && event.key === "Escape") {
+              event.preventDefault();
+              event.stopPropagation();
+              setShowMentionMenu(false);
               return;
             }
 
@@ -313,6 +394,35 @@ export function ChatComposer({
                 const selectedCommand = slashMenuItems[activeSlashIndex];
                 if (selectedCommand) {
                   selectSlashCommand(selectedCommand);
+                }
+                return;
+              }
+            } else if (showMentionMenu && mentionMenuItems.length > 0) {
+              if (event.key === "ArrowDown") {
+                event.preventDefault();
+                setActiveMentionIndex(
+                  (currentIndex) => (currentIndex + 1) % mentionMenuItems.length,
+                );
+                return;
+              }
+
+              if (event.key === "ArrowUp") {
+                event.preventDefault();
+                setActiveMentionIndex(
+                  (currentIndex) =>
+                    (currentIndex - 1 + mentionMenuItems.length) % mentionMenuItems.length,
+                );
+                return;
+              }
+
+              if (
+                event.key === "Tab" ||
+                (event.key === "Enter" && !event.shiftKey && !isComposing)
+              ) {
+                event.preventDefault();
+                const selectedTarget = mentionMenuItems[activeMentionIndex];
+                if (selectedTarget) {
+                  selectMentionTarget(selectedTarget);
                 }
                 return;
               }

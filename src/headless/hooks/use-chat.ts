@@ -154,6 +154,7 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
     setActiveContext,
     persistentContextVariables,
     onSlashCommand,
+    contextReferences,
   } = useChatContext();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [streamingState, setStreamingState] = useState<StreamingState>({
@@ -183,6 +184,8 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
   persistentContextVariablesRef.current = persistentContextVariables;
   const onSlashCommandRef = useRef(onSlashCommand);
   onSlashCommandRef.current = onSlashCommand;
+  const contextReferencesRef = useRef(contextReferences);
+  contextReferencesRef.current = contextReferences;
 
   const clearMessages = useCallback(() => {
     abortControllerRef.current?.abort();
@@ -748,6 +751,9 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
               ...persistentContextVariablesRef.current,
               ...(activeContextIdRef.current ? { contextId: activeContextIdRef.current } : {}),
               ...(matchedCommand ? { slashCommand: matchedCommand.slashCommandId } : {}),
+              ...(contextReferencesRef.current.length > 0
+                ? { pageContext: JSON.stringify(contextReferencesRef.current) }
+                : {}),
               ...extraContextVariables,
             },
           },

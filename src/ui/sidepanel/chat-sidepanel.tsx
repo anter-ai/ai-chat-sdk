@@ -1,7 +1,18 @@
 "use client";
 
-import React from "react";
-import { ExternalLink, Sparkles, X, Plus, Paperclip } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import {
+  ExternalLink,
+  Sparkles,
+  X,
+  Plus,
+  Paperclip,
+  MoreVertical,
+  MessageSquare,
+  MoreHorizontal,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { ChatStateProvider, useChat } from "../../headless/hooks/use-chat";
 import { useChatContext } from "../../headless/context/chat-provider";
 import { ChatComposer } from "../composer/chat-composer";
@@ -15,12 +26,17 @@ import {
 import { SourcesPanel } from "../sources-panel/sources-panel";
 import { FilesPanel } from "../files-panel/files-panel";
 import { ArtifactPanel } from "../artifact-panel/artifact-panel";
+import { useConversationHistory } from "../../headless/hooks/use-conversation-history";
 
 export interface ChatSidepanelProps {
   /** Optional custom title in the side panel header. Defaults to orgLabel or "AI Assistant". */
   title?: string;
   /** Optional subtitle displayed under the main title. */
   subtitle?: string;
+  /** Optional custom brand component/node to replace the entire brand area. */
+  brand?: React.ReactNode;
+  /** Optional custom brand icon/mascot to replace the default Sparkles icon. */
+  brandIcon?: React.ReactNode;
   /** Invoked when the user clicks the close/minimize button. */
   onClose?: () => void;
 
@@ -78,6 +94,8 @@ interface ChatSidepanelContentProps extends ChatSidepanelProps {
 function ChatSidepanelContent({
   title,
   subtitle,
+  brand,
+  brandIcon,
   onClose,
   fullChatUrl,
   onNavigate,
@@ -88,7 +106,7 @@ function ChatSidepanelContent({
   sourcesCtx,
   filesCtx,
 }: ChatSidepanelContentProps) {
-  const { config, orgLabel } = useChatContext();
+  const { adapter, config, orgLabel } = useChatContext();
   const {
     sendMessage,
     stopStreaming,
@@ -98,7 +116,32 @@ function ChatSidepanelContent({
     messages,
     resumeState,
     resumeRun,
+    loadSession,
   } = useChat();
+
+  const { sessions, isLoading: historyLoading, refresh: refreshHistory } = useConversationHistory();
+  const [recentsMenuOpen, setRecentsMenuOpen] = useState(false);
+  const [recentsView, setRecentsView] = useState<"main" | "more">("main");
+  const recentsMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!recentsMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (recentsMenuRef.current && !recentsMenuRef.current.contains(e.target as Node)) {
+        setRecentsMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [recentsMenuOpen]);
+
+  const handleToggleRecents = () => {
+    if (!recentsMenuOpen) {
+      void refreshHistory();
+      setRecentsView("main");
+    }
+    setRecentsMenuOpen((prev) => !prev);
+  };
 
   const hasMessages = messages.length > 0;
   const fullChatHref = resolveFullChatUrl(fullChatUrl, currentSessionId);
@@ -111,21 +154,147 @@ function ChatSidepanelContent({
     !showFilesPanel;
   const isAnyPanelOpen = showSourcesPanel || showFilesPanel || showArtifactPanel;
 
-  const sidepanelTitle = title ?? orgLabel ?? "AI Assistant";
+  const sidepanelTitle = title ?? orgLabel ?? "";
 
   return (
     <div className={`ais-sidepanel-root ${className}`}>
       <header className="ais-sidepanel-header">
-        <div className="ais-sidepanel-brand">
-          <span aria-hidden="true" className="ais-sidepanel-brand-badge">
-            <Sparkles size={13} />
-          </span>
-          <div className="ais-sidepanel-brand-text">
-            <strong className="ais-sidepanel-title">{sidepanelTitle}</strong>
-            {subtitle && <span className="ais-sidepanel-subtitle">{subtitle}</span>}
+        {brand ? (
+          brand
+        ) : (
+          <div className="ais-sidepanel-brand">
+            {brandIcon ? (
+              brandIcon
+            ) : (
+              <span aria-hidden="true" className="ais-sidepanel-brand-badge">
+                <Sparkles size={13} />
+              </span>
+            )}
+            <div className="ais-sidepanel-brand-text">
+              <strong className="ais-sidepanel-title">{sidepanelTitle}</strong>
+              {subtitle && <span className="ais-sidepanel-subtitle">{subtitle}</span>}
+            </div>
           </div>
-        </div>
+        )}
         <div className="ais-sidepanel-header-actions">
+          <div className="ais-sidepanel-recents-menu-wrapper" ref={recentsMenuRef}>
+            <button
+              aria-label="Recent chats"
+              title="Recent chats"
+              onClick={handleToggleRecents}
+              type="button"
+              className={recentsMenuOpen ? "is-active" : ""}
+            >
+              <MoreVertical size={14} />
+            </button>
+
+            {recentsMenuOpen && (
+              <div className="ais-sidepanel-recents-dropdown">
+                {recentsView === "main" ? (
+                  <>
+                    <div className="ais-sidepanel-recents-dropdown-header">Recent Chats</div>
+                    <div className="ais-sidepanel-recents-dropdown-list">
+                      {historyLoading && (
+                        <div className="ais-sidepanel-recents-dropdown-loading">Loading...</div>
+                      )}
+                      {!historyLoading && sessions.length === 0 && (
+                        <div className="ais-sidepanel-recents-dropdown-empty">No recent chats</div>
+                      )}
+                      {!historyLoading &&
+                        sessions.slice(0, 5).map((session) => (
+                          <button
+                            key={session.sessionId}
+                            className={`ais-sidepanel-recents-dropdown-item ${
+                              session.sessionId === currentSessionId ? "is-active" : ""
+                            }`}
+                            onClick={async () => {
+                              setRecentsMenuOpen(false);
+                              try {
+                                const full = await adapter.loadSession(session.sessionId);
+                                loadSession(full);
+                              } catch (err) {
+                                console.error("Failed to load session:", err);
+                              }
+                            }}
+                            type="button"
+                          >
+                            <MessageSquare size={13} className="ais-sidepanel-recents-item-icon" />
+                            <span className="ais-sidepanel-recents-dropdown-item-title">
+                              {session.title}
+                            </span>
+                          </button>
+                        ))}
+                      {!historyLoading && sessions.length > 5 && (
+                        <button
+                          className="ais-sidepanel-recents-dropdown-item is-more"
+                          onClick={() => setRecentsView("more")}
+                          type="button"
+                        >
+                          <MoreHorizontal size={13} className="ais-sidepanel-recents-item-icon" />
+                          <span className="ais-sidepanel-recents-dropdown-item-title">More</span>
+                          <ChevronRight size={13} className="ais-sidepanel-recents-item-arrow" />
+                        </button>
+                      )}
+                    </div>
+                    {fullChatHref && onNavigate && (
+                      <>
+                        <div className="ais-sidepanel-recents-dropdown-divider" />
+                        <button
+                          className="ais-sidepanel-recents-dropdown-item is-action"
+                          onClick={() => {
+                            setRecentsMenuOpen(false);
+                            onNavigate(fullChatHref);
+                          }}
+                          type="button"
+                        >
+                          <ExternalLink size={13} className="ais-sidepanel-recents-item-icon" />
+                          <span className="ais-sidepanel-recents-dropdown-item-title">
+                            Continue Chat in New Tab
+                          </span>
+                        </button>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <button
+                      className="ais-sidepanel-recents-dropdown-back-btn"
+                      onClick={() => setRecentsView("main")}
+                      type="button"
+                    >
+                      <ChevronLeft size={14} />
+                      <span>Back</span>
+                    </button>
+                    <div className="ais-sidepanel-recents-dropdown-list">
+                      {sessions.slice(5).map((session) => (
+                        <button
+                          key={session.sessionId}
+                          className={`ais-sidepanel-recents-dropdown-item ${
+                            session.sessionId === currentSessionId ? "is-active" : ""
+                          }`}
+                          onClick={async () => {
+                            setRecentsMenuOpen(false);
+                            try {
+                              const full = await adapter.loadSession(session.sessionId);
+                              loadSession(full);
+                            } catch (err) {
+                              console.error("Failed to load session:", err);
+                            }
+                          }}
+                          type="button"
+                        >
+                          <MessageSquare size={13} className="ais-sidepanel-recents-item-icon" />
+                          <span className="ais-sidepanel-recents-dropdown-item-title">
+                            {session.title}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
           {config.enableFileUpload && (
             <button
               aria-label={filesCtx.panelOpen ? "Close files" : "Open files"}

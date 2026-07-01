@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { ComposerAnnouncement } from "./chat";
+import type { ComposerAnnouncement, MentionTarget } from "./chat";
 
 export interface ChatPlugins {
   /** Rendered after built-in composer action buttons (Plus, Tools). */
@@ -8,4 +8,6 @@ export interface ChatPlugins {
   composerTopBanner?: ComposerAnnouncement | null;
   /** Banner shown below the composer input. */
   composerBottomBanner?: ComposerAnnouncement | null;
+  /** Provider for @-mention menu options. */
+  mentionProvider?: (query: string) => MentionTarget[] | Promise<MentionTarget[]>;
 }

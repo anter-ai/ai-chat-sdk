@@ -207,6 +207,29 @@ export class AnterAdapter implements ChatAdapter {
     return response.body;
   }
 
+  /**
+   * Orchestrates the end-to-end file upload flow:
+   *
+   * 1. Frontend Interaction:
+   *    - The UI invokes this method, passing the raw `File` wrapped in `FormData` via a POST request to:
+   *      `${baseUrl}/v1/organizations/${organizationId}/agent-builder/sessions/${sessionId}/files`
+   *
+   * 2. Backend Routing & Guards (NestJS):
+   *    - The route `POST /organizations/:organizationId/agent-builder/sessions/:sessionId/files` in `ChatSessionFilesController` processes the upload.
+   *    - RlsContextGuard and CustomAuthGuard validate auth and retrieve context (organizationId, userId).
+   *
+   * 3. S3 Upload & DB Persistence (ChatSessionFilesService):
+   *    - The file buffer is uploaded to S3: `chat-uploads/${organizationId}/${sessionId}/${uuidv4()}_${safeFilename}`.
+   *    - Metadata row is stored in the database via `ChatSessionFileRepository`. Row-Level Security (RLS) restricts access by tenant.
+   *    - The file is associated with the session memory thread via `AgentMemoryService.appendSessionFile`.
+   *
+   * 4. Text/Multimodal Extraction:
+   *    - Text files/documents: Background task extracts text using `FileContentExtractorService` and caches it in the `extractedText` column.
+   *    - Image files: Extraction is deferred to agent run time (multimodal vision processing).
+   *
+   * 5. Agent Grounding Context:
+   *    - During a message run, attached files are resolved via `resolveFileContents()`. The extracted text is injected into the LLM system prompt for context grounding.
+   */
   async uploadFile(
     sessionId: string,
     file: File,

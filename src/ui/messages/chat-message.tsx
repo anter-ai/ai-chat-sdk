@@ -72,12 +72,15 @@ const REMARK_PLUGINS = [remarkGfm, remarkInlineCitations];
 interface ChatMessageProps {
   message: ChatMessageType;
   onRetry: () => void;
+  onRetryMessage?: (messageId: string) => void;
   onFollowUp: (value: string) => void;
   artifactsCtx: UseArtifactsReturn;
   sourcesCtx: UseSourcesReturn;
   onRecordClick?: (record: RecordTag) => void;
   renderMessageFooter?: (message: ChatMessageType) => React.ReactNode;
   showSuggestions?: boolean;
+  isPinned?: boolean;
+  hideMessageActions?: boolean;
   /** True when the adapter implements resolveToolApproval (cards become actionable). */
   canResolveToolApprovals?: boolean;
   onResolveToolApproval?: (
@@ -90,17 +93,28 @@ interface ChatMessageProps {
 export function ChatMessage({
   message,
   onRetry,
+  onRetryMessage,
   onFollowUp,
   artifactsCtx,
   sourcesCtx,
   onRecordClick,
   renderMessageFooter,
   showSuggestions,
+  isPinned,
+  hideMessageActions,
   canResolveToolApprovals,
   onResolveToolApproval,
 }: ChatMessageProps) {
   const { config, strings } = useChatContext();
   const enableArtifacts = config?.enableArtifacts ?? true;
+  const [copied, setCopied] = React.useState(false);
+  const copiedTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  React.useEffect(
+    () => () => {
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    },
+    [],
+  );
 
   const { cleanedContent, extractedArtifacts } = React.useMemo(() => {
     if (message.role !== "assistant" || !message.content) {
@@ -192,6 +206,25 @@ export function ChatMessage({
   const hasSources = !isUser && !message.isStreaming && (message.sources?.length ?? 0) > 0;
   const customFooter = !isUser && !message.isStreaming ? renderMessageFooter?.(message) : null;
 
+  const handleCopyMessage = React.useCallback(() => {
+    if (!message.content) return;
+    // `navigator.clipboard` is undefined on insecure origins and older browsers,
+    // and writeText can reject (denied permission / unfocused document). Guard
+    // both so a failed copy never throws out of the click handler.
+    const clipboard = typeof navigator !== "undefined" ? navigator.clipboard : undefined;
+    if (!clipboard?.writeText) return;
+    clipboard
+      .writeText(message.content)
+      .then(() => {
+        setCopied(true);
+        if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+        copiedTimerRef.current = setTimeout(() => setCopied(false), 1500);
+      })
+      .catch(() => {
+        /* copy unavailable/denied — leave the button in its default state */
+      });
+  }, [message.content]);
+
   return (
     <div className={`ais-message-row ${isUser ? "ais-user" : "ais-assistant"}`}>
       <div className="ais-message-bubble">
@@ -215,7 +248,21 @@ export function ChatMessage({
           <p className="ais-message-stopped">You stopped this response.</p>
         ) : null}
         {!isUser && !message.isStreaming && message.error ? (
-          <button type="button" onClick={onRetry}>
+          <button type="button" className="ais-retry-btn" onClick={onRetry}>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="23 4 23 10 17 10" />
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+            </svg>
             Retry
           </button>
         ) : null}
@@ -270,6 +317,71 @@ export function ChatMessage({
         ) : null}
         {customFooter ? <div className="ais-message-custom-footer">{customFooter}</div> : null}
       </div>
+      {/* Message hover actions: retry (user only) and copy */}
+      {!message.isStreaming && !hideMessageActions ? (
+        <div className="ais-msg-actions" data-pinned={isPinned ? "true" : "false"}>
+          {isUser && onRetryMessage ? (
+            <button
+              type="button"
+              className="ais-msg-action-btn"
+              aria-label="Retry this message"
+              onClick={() => onRetryMessage(message.id)}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="23 4 23 10 17 10" />
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+              </svg>
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className={`ais-msg-action-btn${copied ? " ais-copied" : ""}`}
+            aria-label={copied ? "Copied" : "Copy message"}
+            onClick={handleCopyMessage}
+          >
+            {copied ? (
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            ) : (
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              </svg>
+            )}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

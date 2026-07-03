@@ -17,6 +17,8 @@ interface ChatMessagesProps {
   renderMessageFooter?: (message: ChatMessageType) => React.ReactNode;
   /** Consumer-supplied empty state. Falls back to a minimal generic empty state. */
   emptyState?: React.ReactNode;
+  /** Whether to hide the default message actions (e.g. copy, retry). */
+  hideMessageActions?: boolean;
 }
 
 export function ChatMessages({
@@ -25,9 +27,17 @@ export function ChatMessages({
   onRecordClick,
   renderMessageFooter,
   emptyState,
+  hideMessageActions,
 }: ChatMessagesProps) {
-  const { messages, retryLastMessage, sendMessage, canResolveToolApprovals, resolveToolApproval } =
-    useChat();
+  const {
+    messages,
+    retryLastMessage,
+    retryMessage,
+    sendMessage,
+    isStreaming,
+    canResolveToolApprovals,
+    resolveToolApproval,
+  } = useChat();
   const { anchorRef, isAtBottom, scrollToBottom } = useStickyBottom();
 
   useEffect(() => {
@@ -54,19 +64,41 @@ export function ChatMessages({
       <div className="ais-messages-inner">
         {messages.map((message, index) => {
           const isLastAssistant = index === messages.length - 1 && message.role === "assistant";
+
+          // The last completed (non-streaming, non-command) message keeps its actions pinned.
+          // Earlier turns reveal actions on row hover.
+          const isPinned = (() => {
+            for (let i = messages.length - 1; i >= 0; i--) {
+              const m = messages[i];
+              if (m && !m.isStreaming && m.role !== "command") {
+                return m.id === message.id;
+              }
+            }
+            return false;
+          })();
+
           return (
             <ChatMessage
               key={message.id}
               artifactsCtx={artifactsCtx}
               sourcesCtx={sourcesCtx}
               message={message}
+              isPinned={isPinned}
               showSuggestions={isLastAssistant}
+              hideMessageActions={hideMessageActions}
               onFollowUp={(value) => {
                 void sendMessage(value);
               }}
               onRetry={() => {
                 void retryLastMessage();
               }}
+              onRetryMessage={
+                isStreaming
+                  ? undefined
+                  : (messageId) => {
+                      void retryMessage(messageId);
+                    }
+              }
               onRecordClick={onRecordClick}
               renderMessageFooter={renderMessageFooter}
               canResolveToolApprovals={canResolveToolApprovals}

@@ -137,6 +137,54 @@ describe("ChatMessage", () => {
     expect(screen.getByText("Retry")).toBeInTheDocument();
   });
 
+  it("renders user message hover action buttons (retry + copy)", () => {
+    const mockOnRetryMessage = jest.fn();
+    const message = {
+      id: "u1",
+      role: "user",
+      content: "Hello world",
+      timestamp: new Date(),
+    } as any;
+    render(
+      <ChatMessage
+        message={message}
+        onRetry={mockOnRetry}
+        onRetryMessage={mockOnRetryMessage}
+        onFollowUp={mockOnFollowUp}
+        artifactsCtx={mockArtifactsCtx}
+        sourcesCtx={mockSourcesCtx}
+      />,
+    );
+    const retryBtn = screen.getByRole("button", { name: "Retry this message" });
+    expect(retryBtn).toBeInTheDocument();
+    fireEvent.click(retryBtn);
+    expect(mockOnRetryMessage).toHaveBeenCalledWith("u1");
+
+    const copyBtn = screen.getByRole("button", { name: "Copy message" });
+    expect(copyBtn).toBeInTheDocument();
+  });
+
+  it("does not render retry action on user message when onRetryMessage is not provided", () => {
+    const message = {
+      id: "u2",
+      role: "user",
+      content: "No retry here",
+      timestamp: new Date(),
+    } as any;
+    render(
+      <ChatMessage
+        message={message}
+        onRetry={mockOnRetry}
+        onFollowUp={mockOnFollowUp}
+        artifactsCtx={mockArtifactsCtx}
+        sourcesCtx={mockSourcesCtx}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Retry this message" })).not.toBeInTheDocument();
+    // Copy should still render
+    expect(screen.getByRole("button", { name: "Copy message" })).toBeInTheDocument();
+  });
+
   it("extracts and renders artifacts from content even in non-streaming messages", () => {
     const contentWithArtifact =
       'Here is the plan: <artifact type="markdown" title="Action Plan">Do step 1</artifact>';

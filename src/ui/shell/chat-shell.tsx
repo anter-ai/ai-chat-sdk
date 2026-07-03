@@ -64,6 +64,8 @@ interface ChatShellProps {
   hideArtifactsLink?: boolean;
   /** Custom nav items appended to the sidebar rail. The host supplies each item's label, icon, and click handler. */
   sidebarLinks?: SidebarNavLink[];
+  /** Whether to hide the default message actions (e.g. copy, retry). */
+  hideMessageActions?: boolean;
 }
 
 export function ChatShell({
@@ -81,6 +83,7 @@ export function ChatShell({
   onArtifactsClick,
   hideArtifactsLink,
   sidebarLinks,
+  hideMessageActions,
 }: ChatShellProps) {
   const { config } = useChatContext();
   const artifactsCtx = useArtifacts();
@@ -107,6 +110,7 @@ export function ChatShell({
         onArtifactsClick={onArtifactsClick}
         hideArtifactsLink={hideArtifactsLink}
         sidebarLinks={sidebarLinks}
+        hideMessageActions={hideMessageActions}
       />
     </ChatStateProvider>
   );
@@ -138,6 +142,7 @@ function ChatShellContent({
   onArtifactsClick,
   hideArtifactsLink,
   sidebarLinks,
+  hideMessageActions,
 }: ChatShellContentProps) {
   const {
     sendMessage,
@@ -422,6 +427,7 @@ function ChatShellContent({
                         onRecordClick={onRecordClick}
                         renderMessageFooter={renderMessageFooter}
                         emptyState={emptyState}
+                        hideMessageActions={hideMessageActions}
                       />
                       <ChatComposer
                         isStreaming={isStreaming}

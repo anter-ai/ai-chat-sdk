@@ -827,6 +827,7 @@
 
 .ais-message-row {
   display: flex;
+  flex-direction: column;
 }
 
 .ais-command-pill-row {
@@ -853,7 +854,11 @@
 }
 
 .ais-message-row.ais-user {
-  justify-content: flex-end;
+  align-items: flex-end;
+}
+
+.ais-message-row.ais-assistant {
+  align-items: flex-start;
 }
 
 .ais-message-bubble {
@@ -1394,6 +1399,83 @@
   font-size: 12px;
   font-style: italic;
   color: color-mix(in oklab, var(--message-ai-text) 55%, transparent);
+}
+
+/* Error text on a failed assistant message */
+.ais-message-error {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #ef4444;
+}
+
+/* Retry button shown inline on an errored assistant message */
+.ais-retry-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 5px 12px;
+  border-radius: var(--chat-radius-md, 8px);
+  border: 1px solid color-mix(in oklab, var(--message-ai-text) 18%, transparent);
+  background: color-mix(in oklab, var(--message-ai-bg) 60%, transparent);
+  color: color-mix(in oklab, var(--message-ai-text) 70%, transparent);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ais-retry-btn:hover {
+  border-color: var(--chat-accent);
+  color: var(--chat-accent);
+  background: color-mix(in oklab, var(--chat-accent) 8%, transparent);
+}
+
+/* ── Message hover action bar ────────────────────────────────── */
+
+/* Wrapper: sits below the bubble.
+   Actions are hidden by default and fade in on row hover. */
+.ais-msg-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-top: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+
+.ais-message-row:hover .ais-msg-actions,
+.ais-message-row:focus-within .ais-msg-actions,
+.ais-msg-actions[data-pinned="true"] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Individual action icon button */
+.ais-msg-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--chat-radius-sm, 6px);
+  background: transparent;
+  color: color-mix(in oklab, var(--message-ai-text) 45%, transparent);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.ais-user-msg-action-btn:hover {
+  background: color-mix(in oklab, var(--message-ai-text) 10%, transparent);
+  color: color-mix(in oklab, var(--message-ai-text) 80%, transparent);
+}
+
+.ais-user-msg-action-btn.ais-copied {
+  color: #22c55e;
 }
 
 /* RFP Mode toggle pill */

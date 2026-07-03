@@ -120,6 +120,12 @@ export interface UseChatReturn {
   clearMessages: () => void;
   retryLastMessage: () => Promise<void>;
   /**
+   * Retry from a specific user message. Removes that message and everything
+   * after it (the assistant response, any subsequent turns), then re-sends
+   * the same content — so the message doesn't duplicate.
+   */
+  retryMessage: (messageId: string) => Promise<void>;
+  /**
    * Resume affordance for the last crashed run, from the loaded session's backend hint:
    * `resumable` → Resume (continue from checkpoint), `retry` → Retry (re-send last turn),
    * `live`/`null` → no manual control. Cleared when any new run starts.
@@ -157,6 +163,12 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
     contextReferences,
   } = useChatContext();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // Mirror of `messages` kept current every render so callbacks can read the
+  // latest list without depending on it (and without extracting state from
+  // inside a setMessages updater, which only runs synchronously via React's
+  // eager-bailout and is skipped when an update is already pending).
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
   const [streamingState, setStreamingState] = useState<StreamingState>({
     isStreaming: false,
   });
@@ -555,11 +567,25 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
           },
         });
 
-        while (true) {
-          if (signal.aborted) break;
-          const { done, value } = await currentReader.read();
-          if (done) break;
-          parser.feed(decoder.decode(value, { stream: true }));
+        try {
+          while (true) {
+            if (signal.aborted) break;
+            const { done, value } = await currentReader.read();
+            if (done) break;
+            parser.feed(decoder.decode(value, { stream: true }));
+          }
+        } catch (error) {
+          // A rejected read() is the browser surfacing a killed connection (a proxy
+          // or load balancer dropping a long-lived stream) as a TypeError — e.g.
+          // "network error" — rather than a clean stream end. A user abort can also
+          // surface here as an AbortError instead of a clean end. Everything else
+          // falls through to the same reconnect path a clean non-terminal end takes:
+          // the run detaches server-side and keeps going, so bubbling the error up
+          // would show a dead-end failure for a run that is still progressing.
+          if (signal.aborted || (error instanceof Error && error.name === "AbortError")) {
+            settleStopped();
+            return;
+          }
         }
 
         const tail = decoder.decode();
@@ -567,7 +593,11 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
           parser.feed(tail);
         }
 
-        currentReader.releaseLock();
+        try {
+          currentReader.releaseLock();
+        } catch {
+          // The lock may already be gone when the stream errored out from under us.
+        }
 
         // Clean end (completion / [DONE] / error) or a user abort: settle and stop.
         if (sawTerminal || signal.aborted) {
@@ -797,16 +827,47 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
   const retryLastMessage = useCallback(async () => {
     if (!lastUserMessageRef.current) return;
 
+    // Remove both the errored assistant message AND the preceding user message
+    // so sendMessage can re-create them fresh without duplication.
     setMessages((prev) => {
       const last = prev[prev.length - 1];
       if (last?.role === "assistant" && last.error) {
-        return prev.slice(0, -1);
+        const withoutAssistant = prev.slice(0, -1);
+        const secondToLast = withoutAssistant[withoutAssistant.length - 1];
+        if (secondToLast?.role === "user") {
+          return withoutAssistant.slice(0, -1);
+        }
+        return withoutAssistant;
       }
       return prev;
     });
 
     await sendMessage(lastUserMessageRef.current);
   }, [sendMessage]);
+
+  const retryMessage = useCallback(
+    async (messageId: string) => {
+      // Read the target content from the current list up front — never from a
+      // setMessages updater's side effect, which would leave it undefined (and
+      // still truncate the list) whenever the updater is deferred.
+      const current = messagesRef.current;
+      const target = current.find((m) => m.id === messageId && m.role === "user");
+      const targetContent = target?.content;
+      if (!targetContent) return;
+
+      // Remove the target user message and everything after it (located in the
+      // freshest list at flush time), then re-send the same content so it
+      // doesn't duplicate.
+      setMessages((prev) => {
+        const idx = prev.findIndex((m) => m.id === messageId);
+        return idx < 0 ? prev : prev.slice(0, idx);
+      });
+
+      lastUserMessageRef.current = targetContent;
+      await sendMessage(targetContent);
+    },
+    [sendMessage],
+  );
 
   /**
    * The composer Resume/Retry action. When the last run is checkpoint-resumable
@@ -1093,6 +1154,7 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
       stopStreaming,
       clearMessages,
       retryLastMessage,
+      retryMessage,
       resumeState,
       resumeRun,
       loadSession,
@@ -1110,6 +1172,7 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
       stopStreaming,
       clearMessages,
       retryLastMessage,
+      retryMessage,
       resumeState,
       resumeRun,
       loadSession,

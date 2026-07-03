@@ -38,6 +38,7 @@ describe("ChatComposer", () => {
         createSession: jest.fn(),
       },
       organizationId: "org-123",
+      contextReferences: [],
     });
   });
 
@@ -74,6 +75,7 @@ describe("ChatComposer", () => {
         createSession: jest.fn(),
       },
       organizationId: "org-123",
+      contextReferences: [],
     });
     render(<ChatComposer onSendMessage={mockOnSendMessage} />);
     const textarea = screen.getByPlaceholderText(defaultStrings.composerPlaceholder);

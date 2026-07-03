@@ -1,8 +1,10 @@
 import type {
+  CancelRunInput,
   ChatAdapter,
   ChatSessionFileRef,
   ListParams,
   MessagePayload,
+  SendMessageOptions,
   SessionConfig,
   SessionList,
   SessionPatch,
@@ -151,7 +153,10 @@ export class AnterAdapter implements ChatAdapter {
     await this.request(`${this.memoryBase}/${sessionId}${userSuffix}`, "DELETE");
   }
 
-  async sendMessage(payload: MessagePayload): Promise<ReadableStream<Uint8Array>> {
+  async sendMessage(
+    payload: MessagePayload,
+    options?: SendMessageOptions,
+  ): Promise<ReadableStream<Uint8Array>> {
     if (payload.message.toLowerCase() === "simulate artifact") {
       const encoder = new TextEncoder();
       return new ReadableStream({
@@ -198,6 +203,7 @@ export class AnterAdapter implements ChatAdapter {
       {
         Accept: "text/event-stream",
       },
+      options?.signal,
     );
 
     if (!response.body) {
@@ -205,6 +211,42 @@ export class AnterAdapter implements ChatAdapter {
     }
 
     return response.body;
+  }
+
+  /**
+   * Reattach to a live (possibly detached) run via the agent-runner replay
+   * endpoint. The SDK calls this when an SSE connection drops without a
+   * terminal frame: the run keeps executing server-side, and the replay
+   * endpoint re-sends the persisted frames from `resumeFrom` before continuing
+   * live, so the message bubble is rebuilt seamlessly instead of dead-ending
+   * on a network error.
+   */
+  async getExecutionStream(
+    executionId: string,
+    resumeFrom = 0,
+    options?: SendMessageOptions,
+  ): Promise<ReadableStream<Uint8Array>> {
+    const response = await this.request(
+      `/v1/external/agent-runner/executions/${encodeURIComponent(executionId)}/stream?resumeFrom=${resumeFrom}`,
+      "GET",
+      undefined,
+      { Accept: "text/event-stream" },
+      options?.signal,
+    );
+
+    if (!response.body) {
+      throw new Error("SSE response body is missing");
+    }
+
+    return response.body;
+  }
+
+  /** Cancel the running execution server-side (the Stop button). Idempotent. */
+  async cancelRun(input: CancelRunInput): Promise<void> {
+    await this.request(
+      `/v1/external/agent-runner/executions/${encodeURIComponent(input.executionId)}/cancel`,
+      "POST",
+    );
   }
 
   /**
@@ -339,6 +381,7 @@ export class AnterAdapter implements ChatAdapter {
     method: "GET" | "POST" | "PATCH" | "DELETE",
     body?: unknown,
     extraHeaders?: HeadersInit,
+    signal?: AbortSignal,
   ): Promise<Response> {
     const authHeaders = await this.opts.getAuthHeaders();
     const response = await fetch(`${this.opts.baseUrl}${path}`, {
@@ -350,6 +393,7 @@ export class AnterAdapter implements ChatAdapter {
       },
       credentials: "include",
       body: body ? JSON.stringify(body) : undefined,
+      signal,
     });
 
     if (!response.ok) {

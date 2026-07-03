@@ -28,6 +28,7 @@ An industry-agnostic, embeddable AI chat SDK for React applications. Drop a full
   - [RecordPanel](#recordpanel)
 - [The ChatAdapter interface](#the-chatadapter-interface)
 - [SSE streaming protocol](#sse-streaming-protocol)
+- [Run resilience: stop, reconnect, resume](#run-resilience-stop-reconnect-resume)
 - [Inline content tags](#inline-content-tags)
 - [Slash commands](#slash-commands)
 - [Command palette (⌘K)](#command-palette-k)
@@ -190,6 +191,7 @@ import type {
   SessionConfig,
   SessionPatch,
   MessagePayload,
+  SendMessageOptions,
   SessionList,
   SessionWithMessages,
 } from "@anter/ai-chat-sdk/types";
@@ -230,7 +232,10 @@ class MyAdapter implements ChatAdapter {
     await fetch(`/api/sessions/${sessionId}`, { method: "DELETE" });
   }
 
-  async sendMessage(payload: MessagePayload): Promise<ReadableStream<Uint8Array>> {
+  async sendMessage(
+    payload: MessagePayload,
+    options?: SendMessageOptions,
+  ): Promise<ReadableStream<Uint8Array>> {
     const res = await fetch("/api/chat/stream", {
       method: "POST",
       headers: {
@@ -238,6 +243,8 @@ class MyAdapter implements ChatAdapter {
         Accept: "text/event-stream",
       },
       body: JSON.stringify(payload),
+      // Forward the abort signal so the Stop button can terminate the network stream.
+      signal: options?.signal,
     });
     if (!res.body) throw new Error("Missing response body");
     return res.body;
@@ -338,16 +345,18 @@ The root context provider. Must wrap all other SDK components.
 
 **`config` options:**
 
-| Option                     | Type                            | Default               | Description                                                       |
-| -------------------------- | ------------------------------- | --------------------- | ----------------------------------------------------------------- |
-| `enableArtifacts`          | `boolean`                       | `true`                | Show the artifact panel when the AI generates a document          |
-| `enableModelSelector`      | `boolean`                       | `true`                | Show a model picker in the composer toolbar                       |
-| `enableFileUpload`         | `boolean`                       | `false`               | Allow users to attach files to messages                           |
-| `enableSlashCommands`      | `boolean`                       | `true`                | Show the `/` slash command menu                                   |
-| `enableCommandPalette`     | `boolean`                       | `true`                | Enable the ⌘K command palette                                     |
-| `enableSlashFocusShortcut` | `boolean`                       | `true`                | Focus the composer when the user presses `/` anywhere on the page |
-| `defaultModel`             | `string`                        | `"claude-sonnet-4-6"` | Pre-selected model in the model picker                            |
-| `theme`                    | `"light" \| "dark" \| "system"` | `"system"`            | Color theme applied via `data-theme` attribute                    |
+| Option                     | Type                            | Default               | Description                                                                                                           |
+| -------------------------- | ------------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `enableArtifacts`          | `boolean`                       | `true`                | Show the artifact panel when the AI generates a document                                                              |
+| `enableModelSelector`      | `boolean`                       | `true`                | Show a model picker in the composer toolbar                                                                           |
+| `enableFileUpload`         | `boolean`                       | `false`               | Allow users to attach files to messages                                                                               |
+| `enableSlashCommands`      | `boolean`                       | `true`                | Show the `/` slash command menu                                                                                       |
+| `enableCommandPalette`     | `boolean`                       | `true`                | Enable the ⌘K command palette                                                                                         |
+| `enableSlashFocusShortcut` | `boolean`                       | `true`                | Focus the composer when the user presses `/` anywhere on the page                                                     |
+| `enableResumeRetry`        | `boolean`                       | `true`                | Show the composer Resume/Retry control for crashed runs (see [Run resilience](#run-resilience-stop-reconnect-resume)) |
+| `defaultModel`             | `string`                        | `"claude-sonnet-4-6"` | Pre-selected model in the model picker                                                                                |
+| `theme`                    | `"light" \| "dark" \| "system"` | `"system"`            | Color theme applied via `data-theme` attribute                                                                        |
+| `themeOptions`             | `ChatThemeSpecification`        | `{}`                  | Per-mode brand token overrides (see [Whitelabeling & Custom Theming](#whitelabeling--custom-theming))                 |
 
 **`strings` overrides** — all keys optional, defaults shown:
 
@@ -403,18 +412,23 @@ A full-page chat interface with a collapsible sidebar, resizable panels for sour
 />
 ```
 
-| Prop               | Type                                    | Description                                                                                                                                                                                                                  |
-| ------------------ | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `emptyState`       | `React.ReactNode`                       | Rendered when there are no messages. Defaults to `<ChatEmptyState />`                                                                                                                                                        |
-| `tips`             | `ComposerAnnouncement[]`                | Tip banners shown randomly in the composer on mount                                                                                                                                                                          |
-| `initialSessionId` | `string`                                | Session to load on mount. Triggers `adapter.loadSession`                                                                                                                                                                     |
-| `onSessionChange`  | `(id?: string) => void`                 | Fires whenever the active session changes (new or cleared)                                                                                                                                                                   |
-| `onExportArtifact` | `(artifactId: string) => Promise<void>` | Artifact export callback. When omitted, the export button is hidden                                                                                                                                                          |
-| `onRecordClick`    | `(record: RecordTag) => void`           | Called when the user clicks an inline record chip                                                                                                                                                                            |
-| `recordPanel`      | `React.ReactNode`                       | Custom panel content rendered in the right resizable pane (replaces the artifact panel when provided)                                                                                                                        |
-| `className`        | `string`                                | Additional CSS class on the shell root element                                                                                                                                                                               |
-| `style`            | `React.CSSProperties`                   | Inline styles merged onto the shell root. Pass `{ height: "100%" }` when a bounded parent provides the height                                                                                                                |
-| `viewportOffset`   | `{ top?: number; bottom?: number }`     | Pixels of host-app chrome (header/footer) rendered outside the shell — subtracted from the viewport when computing the shell's height. Equivalent to setting `--ais-chrome-offset-top` / `--ais-chrome-offset-bottom` in CSS |
+| Prop                  | Type                                    | Description                                                                                                                                                                                                                  |
+| --------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `emptyState`          | `React.ReactNode`                       | Rendered when there are no messages. Defaults to `<ChatEmptyState />`                                                                                                                                                        |
+| `tips`                | `ComposerAnnouncement[]`                | Tip banners shown randomly in the composer on mount                                                                                                                                                                          |
+| `initialSessionId`    | `string`                                | Session to load on mount. Triggers `adapter.loadSession`                                                                                                                                                                     |
+| `onSessionChange`     | `(id?: string) => void`                 | Fires whenever the active session changes (new or cleared)                                                                                                                                                                   |
+| `onExportArtifact`    | `(artifactId: string) => Promise<void>` | Artifact export callback. When omitted, the export button is hidden                                                                                                                                                          |
+| `onRecordClick`       | `(record: RecordTag) => void`           | Called when the user clicks an inline record chip                                                                                                                                                                            |
+| `recordPanel`         | `React.ReactNode`                       | Custom panel content rendered in the right resizable pane (replaces the artifact panel when provided)                                                                                                                        |
+| `renderMessageFooter` | `(message) => React.ReactNode`          | Host-supplied footer rendered below each assistant message                                                                                                                                                                   |
+| `hideMessageActions`  | `boolean`                               | Hide the built-in message hover actions (copy, retry)                                                                                                                                                                        |
+| `sidebarLinks`        | `SidebarNavLink[]`                      | Custom nav items appended to the sidebar rail — each carries `{ id, label, icon?, onClick }`                                                                                                                                 |
+| `onArtifactsClick`    | `() => void`                            | Overrides the built-in Artifacts sidebar item's local panel toggle                                                                                                                                                           |
+| `hideArtifactsLink`   | `boolean`                               | Hide the built-in Artifacts sidebar item                                                                                                                                                                                     |
+| `className`           | `string`                                | Additional CSS class on the shell root element                                                                                                                                                                               |
+| `style`               | `React.CSSProperties`                   | Inline styles merged onto the shell root. Pass `{ height: "100%" }` when a bounded parent provides the height                                                                                                                |
+| `viewportOffset`      | `{ top?: number; bottom?: number }`     | Pixels of host-app chrome (header/footer) rendered outside the shell — subtracted from the viewport when computing the shell's height. Equivalent to setting `--ais-chrome-offset-top` / `--ais-chrome-offset-bottom` in CSS |
 
 > **Height requirement:** `ChatShell` manages its own internal scroll and resizable panel layout. It must be rendered inside a container with an explicit, bounded height — a flex parent with `flex: 1` or `height: 100%`. Without a bounded height the resizable panels have nothing to fill and will collapse.
 >
@@ -747,9 +761,12 @@ interface ChatAdapter {
   listSessions(params?: ListParams): Promise<SessionList>;
   updateSession(sessionId: string, patch: SessionPatch): Promise<void>;
   deleteSession(sessionId: string): Promise<void>;
-  sendMessage(payload: MessagePayload): Promise<ReadableStream<Uint8Array>>;
+  sendMessage(
+    payload: MessagePayload,
+    options?: SendMessageOptions,
+  ): Promise<ReadableStream<Uint8Array>>;
 
-  // Optional
+  // Optional — files & commands
   loadSlashCommands?(): Promise<void>;
   uploadFile?(
     sessionId: string,
@@ -759,18 +776,35 @@ interface ChatAdapter {
   listSessionFiles?(sessionId: string): Promise<ChatSessionFileRef[]>;
   deleteSessionFile?(sessionId: string, fileId: string): Promise<void>;
   downloadFile?(sessionId: string, fileId: string): Promise<Blob>;
+
+  // Optional — approvals & run lifecycle (see "Run resilience" below)
   resolveToolApproval?(input: ResolveToolApprovalInput): Promise<void>;
+  cancelRun?(input: CancelRunInput): Promise<void>;
+  getExecutionStream?(
+    executionId: string,
+    resumeFrom?: number,
+    options?: SendMessageOptions,
+  ): Promise<ReadableStream<Uint8Array>>;
+  resumeExecution?(
+    executionId: string,
+    options?: SendMessageOptions,
+  ): Promise<ReadableStream<Uint8Array>>;
 }
 ```
+
+`SendMessageOptions` carries `{ signal?: AbortSignal }` — forward it to your `fetch` call so the Stop button can actually terminate the network stream.
 
 **Method details:**
 
 | Method                | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `createSession`       | Return a session ID string. Creating the session in the backend is optional — the ID just needs to be stable for subsequent calls                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `loadSession`         | Return the full `SessionWithMessages` shape including all messages and any artifacts                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `loadSession`         | Return the full `SessionWithMessages` shape including all messages and any artifacts. May also carry the resume hint for the session's latest run (`resumeState`, `resumableExecutionId`) — see [Run resilience](#run-resilience-stop-reconnect-resume)                                                                                                                                                                                                                                                                                |
 | `listSessions`        | Return a paginated `SessionList`. The SDK passes `{ page: 1, limit: 50 }` by default                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `sendMessage`         | Must return a `ReadableStream<Uint8Array>` of SSE text. See [SSE Streaming Protocol](#sse-streaming-protocol)                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `sendMessage`         | Must return a `ReadableStream<Uint8Array>` of SSE text. Forward `options.signal` to your fetch call. See [SSE Streaming Protocol](#sse-streaming-protocol)                                                                                                                                                                                                                                                                                                                                                                             |
+| `cancelRun`           | Cancel the in-flight run server-side (the Stop button). Receives `{ sessionId, executionId }` — the `executionId` is captured from the stream's `started` event. When absent, Stop only aborts the client stream; the server notices the disconnect and cancels (or detaches) on its own                                                                                                                                                                                                                                               |
+| `getExecutionStream`  | Reattach to a live run's stream after a dropped connection, replaying from chunk `resumeFrom`. When implemented, the SDK automatically reconnects mid-run instead of surfacing a network error. See [Run resilience](#run-resilience-stop-reconnect-resume)                                                                                                                                                                                                                                                                            |
+| `resumeExecution`     | Continue a **crashed** run from its last server-side checkpoint (the composer's Resume button), streaming the remainder. Distinct from `getExecutionStream`, which only reattaches to a run that is still executing. Must reject (non-2xx) when the run turns out not to be resumable, so the UI can fall back to a fresh retry                                                                                                                                                                                                        |
 | `loadSlashCommands`   | Called once on `ChatStateProvider` mount. Use it to fetch and register slash commands                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `uploadFile`          | Required when `enableFileUpload: true`. File upload is disabled at the UI level if this method is absent                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `listSessionFiles`    | Called when the files panel opens or the session changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
@@ -847,6 +881,7 @@ data: [DONE]
 
 | Event                    | Expected payload                                                                                    | Description                                                                                                                                                                        |
 | ------------------------ | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `started`                | `{ executionId?: string }`                                                                          | Emitted at the start of a run. The `executionId` is what powers Stop (`cancelRun`) and mid-run reconnect (`getExecutionStream`) — send it if your backend supports either          |
 | `content`                | `{ content: string }` or `{ payload: { text: string } }`                                            | A streamed text chunk — appended to the current message                                                                                                                            |
 | `done`                   | `{ isComplete: true, artifactIds?: string[], suggestions?: string[], sources?: MessageSource[] }`   | Stream complete — triggers post-processing (citations, record tags, suggestions)                                                                                                   |
 | `error`                  | `{ error: string }`                                                                                 | Fatal error — shown in the message bubble with a Retry button                                                                                                                      |
@@ -857,6 +892,8 @@ data: [DONE]
 | `context_resolved`       | `{ payload: { key: "contextId", value: string } }`                                                  | Server resolved a required context value — updates `activeContextId` in the provider                                                                                               |
 | `tool_approval_request`  | `{ payload: { approvalId, toolCallId, toolName, args?, riskCategory?, expiresAt?, executionId? } }` | A HITL tool approval — the run is paused server-side. Renders an interactive approval card on the streaming message (actionable when the adapter implements `resolveToolApproval`) |
 | `tool_approval_resolved` | `{ payload: { approvalId, decision: "approved" \| "denied" \| "timeout" \| "canceled", reason? } }` | Resolves the approval card (from any channel); a deny `reason` is displayed on the card. `timeout` renders as expired                                                              |
+
+> **Heartbeats:** SSE comment lines (`: ping\n\n`) are ignored by the parser and never reach the UI — send one every 15–30 seconds during long silent stretches (tool execution, sub-agent work) so proxies and load balancers with idle timeouts don't kill the connection mid-run.
 
 ### Minimal streaming server example (Node.js / Bun)
 
@@ -869,6 +906,11 @@ export async function POST(req: Request) {
       const enc = new TextEncoder();
       const send = (event: string, data: object) =>
         controller.enqueue(enc.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+
+      // Optional but recommended: lets the SDK stop/reconnect to this run.
+      send("started", { executionId: "exec-123" });
+      // Optional heartbeat during silent stretches (ignored by the parser):
+      // controller.enqueue(enc.encode(`: ping\n\n`));
 
       send("content", { content: "Hello, " });
       send("content", { content: "world!" });
@@ -901,6 +943,66 @@ interface AgentStepEvent {
   tokens_used?: number;
 }
 ```
+
+---
+
+## Run resilience: stop, reconnect, resume
+
+A long-running agent turn can outlive a single HTTP connection — a proxy or load balancer may drop the socket while the run keeps executing server-side. The SDK has a layered recovery model; each layer activates when the adapter implements the corresponding optional method.
+
+### The `executionId` lifecycle
+
+Everything hinges on the backend emitting a `started` SSE event carrying the run's `executionId` at the top of each stream. The SDK captures it and uses it for all three controls below. Without it, none of them can act on the server-side run.
+
+### Stop (`cancelRun`)
+
+When the user clicks Stop, the SDK calls `adapter.cancelRun({ sessionId, executionId })` (best-effort), then aborts the local stream via the `AbortSignal` it passed to `sendMessage`. When `cancelRun` is absent, only the local stream is aborted — the server sees the disconnect and handles it however it chooses (cancel, or detach and keep running).
+
+### Automatic mid-run reconnect (`getExecutionStream`)
+
+If the stream ends **without a terminal frame** (`done` / `error` / `[DONE]`) or the read fails outright (a killed socket surfaces in the browser as a `TypeError: network error`), the SDK treats the connection — not the run — as dead:
+
+1. It calls `adapter.getExecutionStream(executionId, 0, { signal })` to reattach.
+2. The replay stream re-sends the turn's frames from chunk `0`, so the SDK resets the message bubble (content, steps, artifact ids) and rebuilds it from the replay. Pending tool-approval cards are preserved and deduped by `approvalId`.
+3. If the reattached stream also drops, it retries — bounded at **5 reconnect attempts** per turn, so a genuinely stuck run cannot loop forever.
+
+When reconnect is impossible (no `executionId` arrived, the adapter doesn't implement `getExecutionStream`, or attempts are exhausted), the message settles with a friendly "connection was lost" error and an inline Retry control — never the raw browser network error.
+
+Backend expectations for `getExecutionStream`:
+
+- The run must **detach** on client disconnect (keep executing, keep persisting stream chunks).
+- A replay endpoint must re-send persisted chunks from `resumeFrom` and then continue live, e.g. `GET /executions/:id/stream?resumeFrom=N`.
+- Emit heartbeat comments while the run is silent (see the note in the SSE section).
+
+### Resume after a crash (`resumeExecution` + `resumeState`)
+
+Reconnect covers a dead _connection_; resume covers a dead _run_. When `loadSession` returns a session whose latest run crashed, the backend can hint the recovery path via two fields on `SessionWithMessages`:
+
+```typescript
+type ResumeState = "live" | "resumable" | "retry" | null;
+
+interface Session {
+  // ...
+  activeExecutionId?: string | null; // "live"  — a run is still in flight
+  resumeState?: ResumeState;
+  resumableExecutionId?: string | null; // "resumable" — continue from checkpoint
+}
+```
+
+- `"resumable"` — the composer shows a **Resume** control; clicking it calls `adapter.resumeExecution(resumableExecutionId)` and streams the remainder from the last server-side checkpoint. If the backend answers non-2xx (no longer resumable), the UI falls back to re-sending the last turn.
+- `"retry"` — the composer shows a **Retry** control that re-sends the last user message.
+- `"live"` / `null` — no manual control is shown.
+
+The whole affordance is gated by `config.enableResumeRetry` (default `true`) and requires the adapter to implement `resumeExecution`.
+
+### Adapter support matrix
+
+| Adapter implements   | User experience on a dropped connection                |
+| -------------------- | ------------------------------------------------------ |
+| Neither              | Friendly "connection was lost" error with inline Retry |
+| `getExecutionStream` | Seamless automatic reattach mid-run (up to 5 attempts) |
+| + `cancelRun`        | Stop also cancels the run server-side                  |
+| + `resumeExecution`  | Crashed runs offer checkpoint Resume on session reload |
 
 ---
 
@@ -1394,9 +1496,26 @@ interface UseChatReturn {
     overrideSessionId?: string,
     extraContextVariables?: Record<string, string>,
   ) => Promise<void>;
+  // Stop the in-flight response: cancels server-side via adapter.cancelRun
+  // (when implemented), then aborts the local stream.
+  stopStreaming: () => void;
   clearMessages: () => void; // Resets to a new conversation
   retryLastMessage: () => Promise<void>;
+  // Retry from a specific user message: removes it and everything after it,
+  // then re-sends the same content (no duplication).
+  retryMessage: (messageId: string) => Promise<void>;
+  // Resume affordance for the last crashed run (see Run resilience):
+  // "resumable" → Resume, "retry" → Retry, "live"/null → no control.
+  resumeState: ResumeState;
+  resumeRun: () => Promise<void>; // Run the Resume/Retry action
   loadSession: (session: SessionWithMessages) => void;
+  // HITL tool approvals (see resolveToolApproval on the adapter)
+  canResolveToolApprovals: boolean;
+  resolveToolApproval: (
+    approval: ToolApproval,
+    decision: "approved" | "denied",
+    reason?: string,
+  ) => Promise<void>;
 }
 ```
 
@@ -1606,6 +1725,8 @@ The `subject` value is converted from kebab-case to Title Case for display (e.g.
 ## AnterAdapter
 
 The `AnterAdapter` is the official Anter backend adapter for this SDK. It lives in the sibling [`@anter/anter-adapter`](../packages/anter-adapter) package to keep this SDK generic and domain-agnostic.
+
+It implements the full run-lifecycle contract out of the box: `sendMessage` forwards the Stop button's abort signal, `cancelRun` cancels the execution server-side, and `getExecutionStream` reattaches to a live run after a dropped connection via the Anter agent-runner replay endpoint (`GET /v1/external/agent-runner/executions/:id/stream?resumeFrom=N`) — so long-running turns survive proxy idle timeouts automatically.
 
 ```typescript
 import { AnterAdapter } from "@anter/anter-adapter";
@@ -2077,6 +2198,9 @@ import type {
   SessionConfig,
   SessionPatch,
   MessagePayload,
+  SendMessageOptions,
+  CancelRunInput,
+  ResolveToolApprovalInput,
   SessionList,
   ChatSessionFileRef,
   UploadFileOptions,
@@ -2087,9 +2211,12 @@ import type {
   // Session
   Session,
   SessionWithMessages,
+  ResumeState,
   // Chat / messages
   ChatMessage,
   MessageRole,
+  ToolApproval,
+  ToolApprovalStatus,
   MessageSource,
   AgentStepEvent,
   AgentStepType,

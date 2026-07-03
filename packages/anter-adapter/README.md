@@ -120,6 +120,19 @@ export const adapter = new AnterAdapter({
 
 - When both `projectId` and `agentId` are set, API calls go to `/v1/external/projects/{projectId}/agents/{agentId}`.
 - Without them, calls go to `/v1/organizations/{organizationId}/agent-builder`.
+- Run-lifecycle calls (reconnect, cancel) go to `/v1/external/agent-runner/executions/{executionId}/...` regardless of the routing mode above.
+
+---
+
+## Run lifecycle (stop, reconnect)
+
+The adapter implements the SDK's optional run-lifecycle contract, so long-running turns survive dropped connections:
+
+- **`sendMessage(payload, options)`** forwards `options.signal` to `fetch`, letting the SDK's Stop button abort the network stream.
+- **`cancelRun({ sessionId, executionId })`** — `POST /v1/external/agent-runner/executions/{executionId}/cancel`. Cancels the run server-side; idempotent.
+- **`getExecutionStream(executionId, resumeFrom = 0, options)`** — `GET /v1/external/agent-runner/executions/{executionId}/stream?resumeFrom={N}`. Reattaches to a live (detached) run and replays its persisted frames before continuing live. The SDK calls this automatically when an SSE connection drops mid-run without a terminal frame — including abrupt socket kills that surface as browser network errors.
+
+No configuration is needed — the SDK detects these methods and enables Stop/reconnect behavior automatically. See the SDK README's "Run resilience" section for the full model.
 
 ---
 

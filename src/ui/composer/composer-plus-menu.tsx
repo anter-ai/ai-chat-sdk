@@ -43,7 +43,7 @@ export function ComposerPlusMenu({ onClose, onUploadFiles }: ComposerPlusMenuPro
         <span>Upload files or photos</span>
       </button>
 
-      <button
+      {/* <button
         aria-label="Skill — coming soon"
         className="ais-composer-plus-menu-item ais-composer-plus-menu-item--soon"
         disabled
@@ -54,7 +54,7 @@ export function ComposerPlusMenu({ onClose, onUploadFiles }: ComposerPlusMenuPro
         <Sparkles size={16} />
         <span>Skill</span>
         <span className="ais-composer-plus-menu-badge">soon</span>
-      </button>
+      </button> */}
     </div>
   );
 }

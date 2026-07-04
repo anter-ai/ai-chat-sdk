@@ -23,6 +23,7 @@ An industry-agnostic, embeddable AI chat SDK for React applications. Drop a full
 - [Components](#components)
   - [ChatProvider](#chatprovider)
   - [ChatShell](#chatshell)
+  - [ChatView](#chatview)
   - [ChatWidget](#chatwidget)
   - [ChatEmptyState](#chatemptystate)
   - [RecordPanel](#recordpanel)
@@ -53,14 +54,14 @@ The SDK separates **UI and state** from **backend communication**. You supply an
 
 It ships in layered entry points so you can take exactly what you need:
 
-| Import path                             | What you get                                                               |
-| --------------------------------------- | -------------------------------------------------------------------------- |
-| `@anter/ai-chat-sdk`                    | Everything: UI components + headless hooks + extensions                    |
-| `@anter/ai-chat-sdk/ui`                 | UI components only (`ChatShell`, `ChatWidget`, `RecordPanel`, …)           |
-| `@anter/ai-chat-sdk/headless`           | Hooks and context only, no UI (`useChat`, `useArtifacts`, `useSources`, …) |
-| `@anter/ai-chat-sdk/types`              | TypeScript type definitions only                                           |
-| `@anter/ai-chat-sdk/styles.css`         | Full stylesheet (includes CSS reset/base)                                  |
-| `@anter/ai-chat-sdk/styles-no-base.css` | Stylesheet without base resets                                             |
+| Import path                             | What you get                                                                 |
+| --------------------------------------- | ---------------------------------------------------------------------------- |
+| `@anter/ai-chat-sdk`                    | Everything: UI components + headless hooks + extensions                      |
+| `@anter/ai-chat-sdk/ui`                 | UI components only (`ChatShell`, `ChatView`, `ChatWidget`, `RecordPanel`, …) |
+| `@anter/ai-chat-sdk/headless`           | Hooks and context only, no UI (`useChat`, `useArtifacts`, `useSources`, …)   |
+| `@anter/ai-chat-sdk/types`              | TypeScript type definitions only                                             |
+| `@anter/ai-chat-sdk/styles.css`         | Full stylesheet (includes CSS reset/base)                                    |
+| `@anter/ai-chat-sdk/styles-no-base.css` | Stylesheet without base resets                                               |
 
 > **ESM only.** The package is built as ES modules. Configure your bundler accordingly (Vite, Next.js, Webpack 5+, etc. all support this out of the box).
 
@@ -484,6 +485,41 @@ interface ComposerAnnouncement {
   onDismiss?: () => void; // Called when the user dismisses the banner
 }
 ```
+
+---
+
+### `<ChatView>`
+
+A standalone, full-featured chat pane designed to be embedded seamlessly into your existing layouts. It drops the built-in sidebar from `ChatShell` while preserving the resizable artifact/file drawers, making it the perfect primitive for dashboards, sliding panels, or inline content areas.
+
+```tsx
+<div style={{ height: "600px", border: "1px solid #ccc" }}>
+  <ChatView
+    emptyState={<MyEmptyState />}
+    initialSessionId="session-abc"
+    onSessionChange={(id) => router.replace(`/chat/${id ?? ""}`)}
+    onExportArtifact={async (artifactId) => {
+      await myApi.save(artifactId);
+    }}
+  />
+</div>
+```
+
+| Prop                  | Type                                    | Description                                                                                           |
+| --------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `emptyState`          | `React.ReactNode`                       | Rendered when there are no messages. Defaults to `<ChatEmptyState />`                                 |
+| `tips`                | `ComposerAnnouncement[]`                | Tip banners shown randomly in the composer on mount                                                   |
+| `initialSessionId`    | `string`                                | Session to load on mount. Triggers `adapter.loadSession`                                              |
+| `onSessionChange`     | `(id?: string) => void`                 | Fires whenever the active session changes (new or cleared)                                            |
+| `onExportArtifact`    | `(artifactId: string) => Promise<void>` | Artifact export callback. When omitted, the export button is hidden                                   |
+| `onRecordClick`       | `(record: RecordTag) => void`           | Called when the user clicks an inline record chip                                                     |
+| `recordPanel`         | `React.ReactNode`                       | Custom panel content rendered in the right resizable pane (replaces the artifact panel when provided) |
+| `renderMessageFooter` | `(message) => React.ReactNode`          | Host-supplied footer rendered below each assistant message                                            |
+| `hideMessageActions`  | `boolean`                               | Hide the built-in message hover actions (copy, retry)                                                 |
+| `className`           | `string`                                | Additional CSS class on the root element                                                              |
+| `style`               | `React.CSSProperties`                   | Inline styles merged onto the root element                                                            |
+
+> **Height requirement:** Just like `ChatShell`, `ChatView` requires an explicit bounded height from its parent container in order to correctly manage scrolling and resizing panels.
 
 ---
 

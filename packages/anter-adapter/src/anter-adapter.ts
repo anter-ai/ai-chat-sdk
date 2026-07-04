@@ -250,6 +250,28 @@ export class AnterAdapter implements ChatAdapter {
   }
 
   /**
+   * Continue a crashed run from its last server-side checkpoint.
+   */
+  async resumeExecution(
+    executionId: string,
+    options?: SendMessageOptions,
+  ): Promise<ReadableStream<Uint8Array>> {
+    const response = await this.request(
+      `/v1/external/agent-runner/executions/${encodeURIComponent(executionId)}/resume`,
+      "POST",
+      undefined,
+      { Accept: "text/event-stream" },
+      options?.signal,
+    );
+
+    if (!response.body) {
+      throw new Error("SSE response body is missing");
+    }
+
+    return response.body;
+  }
+
+  /**
    * Orchestrates the end-to-end file upload flow:
    *
    * 1. Frontend Interaction:

@@ -17,7 +17,7 @@ import { useChat } from "../../headless/hooks/use-chat";
 import { RecentSessionItem } from "../shared/recent-session-item";
 import { ConfirmDialog } from "../shared/confirm-dialog";
 
-export type ChatView = "chat" | "recents";
+export type SidebarView = "chat" | "recents";
 const SIDEBAR_OVERLAY_BREAKPOINT_PX = 1024;
 
 /**
@@ -50,8 +50,8 @@ interface ChatSidebarProps {
   isOpen?: boolean;
   onToggle?: () => void;
   className?: string;
-  activeView?: ChatView;
-  onViewChange?: (view: ChatView) => void;
+  activeView?: SidebarView;
+  onViewChange?: (view: SidebarView) => void;
   /** When this transitions from false → true (artifact panel just opened),
    *  the sidebar is automatically collapsed. The user can still re-open it
    *  afterwards — this is a one-time nudge, not a permanent lock. REQ-02/04 */

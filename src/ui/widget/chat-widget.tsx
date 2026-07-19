@@ -29,6 +29,10 @@ interface ChatWidgetProps {
   emptyState?: React.ReactNode;
   /** Custom trigger element. When provided, replaces the default floating bubble button. */
   trigger?: React.ReactNode | ((props: { open: boolean }) => React.ReactNode);
+  /** Optional custom brand component/node to replace the entire brand area. */
+  brand?: React.ReactNode;
+  /** Optional custom brand icon/mascot to replace the default Sparkles icon. */
+  brandIcon?: React.ReactNode;
 }
 
 function resolveFullChatUrl(
@@ -52,6 +56,8 @@ export function ChatWidget({
   subtitle,
   emptyState,
   trigger,
+  brand,
+  brandIcon,
 }: ChatWidgetProps) {
   return (
     <ChatStateProvider>
@@ -65,6 +71,8 @@ export function ChatWidget({
         subtitle={subtitle}
         emptyState={emptyState}
         trigger={trigger}
+        brand={brand}
+        brandIcon={brandIcon}
       />
     </ChatStateProvider>
   );
@@ -80,6 +88,8 @@ function ChatWidgetContent({
   subtitle,
   emptyState,
   trigger,
+  brand,
+  brandIcon,
 }: ChatWidgetProps) {
   const [open, setOpen] = useState(initialOpen);
   const { config, orgLabel } = useChatContext();
@@ -142,15 +152,23 @@ function ChatWidgetContent({
             sideOffset={10}
           >
             <header className="ais-widget-header">
-              <div className="ais-widget-brand">
-                <span aria-hidden="true" className="ais-widget-brand-badge">
-                  <Sparkles size={13} />
-                </span>
-                <div className="ais-widget-brand-text">
-                  <strong className="ais-widget-title">{widgetTitle}</strong>
-                  {subtitle && <span className="ais-widget-subtitle">{subtitle}</span>}
+              {brand ? (
+                brand
+              ) : (
+                <div className="ais-widget-brand">
+                  {brandIcon ? (
+                    brandIcon
+                  ) : (
+                    <span aria-hidden="true" className="ais-widget-brand-badge">
+                      <Sparkles size={13} />
+                    </span>
+                  )}
+                  <div className="ais-widget-brand-text">
+                    <strong className="ais-widget-title">{widgetTitle}</strong>
+                    {subtitle && <span className="ais-widget-subtitle">{subtitle}</span>}
+                  </div>
                 </div>
-              </div>
+              )}
               <div className="ais-widget-header-actions">
                 {config.enableFileUpload && (
                   <button

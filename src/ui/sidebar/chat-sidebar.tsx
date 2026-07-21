@@ -78,7 +78,13 @@ export function ChatSidebar({
   const { adapter, organizationId, currentSession, setCurrentSession } = useChatContext();
   const { sessions, isLoading, refresh, deleteSession } = useConversationHistory();
   const { loadSession, currentSessionId, isStreaming, clearMessages, messages } = useChat();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    const persisted = window.localStorage.getItem("ais-chat-sidebar-collapsed");
+    if (persisted === "1") return true;
+    if (persisted === "0") return false;
+    // No stored preference yet — auto-collapse on smaller screens on first mount.
+    return window.innerWidth <= SIDEBAR_OVERLAY_BREAKPOINT_PX;
+  });
   const [recentsCollapsed, setRecentsCollapsed] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const isStreamingRef = React.useRef(isStreaming);
@@ -152,23 +158,6 @@ export function ChatSidebar({
       });
     }
   }, [sessions, currentSessionId, currentSession, setCurrentSession, isStreaming]);
-
-  useEffect(() => {
-    const persisted = window.localStorage.getItem("ais-chat-sidebar-collapsed");
-    if (persisted === "1") {
-      setCollapsed(true);
-      return;
-    }
-    if (persisted === "0") {
-      setCollapsed(false);
-      return;
-    }
-
-    // Auto-collapse on smaller screens on mount
-    if (window.innerWidth <= SIDEBAR_OVERLAY_BREAKPOINT_PX) {
-      setCollapsed(true);
-    }
-  }, []);
 
   useEffect(() => {
     if (!isOpen) return;

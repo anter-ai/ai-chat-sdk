@@ -77,12 +77,30 @@ export function ChatSidebar({
 }: ChatSidebarProps) {
   const { adapter, organizationId, currentSession, setCurrentSession } = useChatContext();
   const { sessions, isLoading, refresh, deleteSession } = useConversationHistory();
-  const { loadSession, currentSessionId, isStreaming, clearMessages } = useChat();
+  const { loadSession, currentSessionId, isStreaming, clearMessages, messages } = useChat();
   const [collapsed, setCollapsed] = useState(false);
   const [recentsCollapsed, setRecentsCollapsed] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const isStreamingRef = React.useRef(isStreaming);
   const prevArtifactOpenRef = React.useRef<boolean | undefined>(undefined);
+
+  const displaySessions = useMemo(() => {
+    const hasCurrent = sessions.some((s) => s.sessionId === currentSessionId);
+    if (currentSessionId && !hasCurrent) {
+      const userMsg = messages.find((m) => m.role === "user")?.content;
+      if (userMsg) {
+        const title = userMsg.length > 50 ? userMsg.substring(0, 47) + "..." : userMsg;
+        const optimisticSession = {
+          sessionId: currentSessionId,
+          title,
+          updatedAt: new Date().toISOString(),
+          status: "active" as const,
+        };
+        return [optimisticSession, ...sessions];
+      }
+    }
+    return sessions;
+  }, [sessions, currentSessionId, messages]);
 
   // REQ-02: auto-collapse the sidebar the moment the artifact panel opens,
   // but allow the user to re-expand it afterwards (edge-trigger, not a lock).
@@ -290,10 +308,10 @@ export function ChatSidebar({
           </div>
           <div className="ais-sidebar-recents" role="list" aria-label="Recent conversations">
             {isLoading ? <p className="ais-sidebar-hint">Loading...</p> : null}
-            {!isLoading && sessions.length === 0 ? (
+            {!isLoading && displaySessions.length === 0 ? (
               <p className="ais-sidebar-hint">No conversations yet</p>
             ) : null}
-            {sessions.map((session) => (
+            {displaySessions.map((session) => (
               <RecentSessionItem
                 key={session.sessionId}
                 session={session}

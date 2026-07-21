@@ -200,7 +200,12 @@ function ChatShellContent({
   );
   const didLoadInitialRef = React.useRef(false);
   React.useEffect(() => {
-    if (!initialSessionId || didLoadInitialRef.current) return;
+    if (!initialSessionId) return;
+    if (initialSessionId === currentSessionId) {
+      didLoadInitialRef.current = true;
+      return;
+    }
+    if (didLoadInitialRef.current) return;
     didLoadInitialRef.current = true;
     adapter
       .loadSession(initialSessionId)
@@ -210,7 +215,7 @@ function ChatShellContent({
       .catch(() => {
         onSessionChange?.(undefined);
       });
-  }, [initialSessionId, adapter, loadSession, onSessionChange]);
+  }, [initialSessionId, currentSessionId, adapter, loadSession, onSessionChange]);
 
   const prevSessionIdRef = React.useRef<string | undefined>(undefined);
   React.useEffect(() => {

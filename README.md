@@ -97,11 +97,23 @@ This package lives inside the monorepo as a workspace package. From any workspac
 pnpm add @anter/ai-chat-sdk
 ```
 
-For external consumers (once published):
+For external consumers, install straight from this repo — it is **not on npm yet**.
+The `prepare` script builds `dist/` at install time, so there is no extra step:
 
 ```bash
-npm install @anter/ai-chat-sdk
+npm install github:anter-ai/ai-chat-sdk
+# or
+pnpm add github:anter-ai/ai-chat-sdk
 ```
+
+Pin to a commit for a reproducible install:
+
+```bash
+npm install github:anter-ai/ai-chat-sdk#<commit-sha>
+```
+
+> Building from source at install time needs a POSIX shell (`mkdir -p`, `cp`).
+> On Windows, install under WSL until the package is published to npm.
 
 ### Vendoring before the package is published to npm
 

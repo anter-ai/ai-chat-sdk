@@ -1,6 +1,11 @@
 # `@anter/ai-chat-sdk`
 
+[![npm version](https://img.shields.io/npm/v/@anter/ai-chat-sdk.svg)](https://www.npmjs.com/package/@anter/ai-chat-sdk)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 An industry-agnostic, embeddable AI chat SDK for React applications. Drop a fully-featured chat UI into any product — regardless of domain — by wiring up your own backend through a simple adapter interface.
+
+> ⚡ **See It Live in Action:** Want to test real-time streaming responses, artifact viewports, and slash commands before installing? **[Visit anter.ai to try the live demo →](https://anter.ai)**
 
 ---
 
@@ -19,7 +24,7 @@ An industry-agnostic, embeddable AI chat SDK for React applications. Drop a full
 - [Requirements](#requirements)
 - [Installation](#installation)
   - [Vendoring before npm publish](#vendoring-before-the-package-is-published-to-npm)
-- [Quick start](#quick-start)
+- [Usage](#usage)
 - [Components](#components)
   - [ChatProvider](#chatprovider)
   - [ChatShell](#chatshell)
@@ -45,6 +50,8 @@ An industry-agnostic, embeddable AI chat SDK for React applications. Drop a full
 - [Whitelabeling & Custom Theming](#whitelabeling--custom-theming)
 - [ChatWidget: Stateless & Public-Site Mode](#chatwidget-stateless--public-site-mode)
 - [TypeScript](#typescript)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
@@ -178,7 +185,7 @@ To fix a bug or add a feature: open a PR on `anter-ai/ai-chat-sdk`, get it merge
 
 ---
 
-## Quick start
+## Usage
 
 ### 1. Import styles
 
@@ -2288,3 +2295,15 @@ import type {
 // StarterCard and RecordTag are exported from the main entry:
 import type { StarterCard, RecordTag } from "@anter/ai-chat-sdk";
 ```
+
+---
+
+## Contributing
+
+We welcome contributions! Please read our [CONTRIBUTING.md](CONTRIBUTING.md) for details on our development workflow, code of conduct, and how to submit pull requests.
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

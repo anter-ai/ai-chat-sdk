@@ -1,6 +1,27 @@
 {
   "name": "@anter/ai-chat-sdk",
   "version": "0.1.0",
+  "description": "An industry-agnostic, embeddable AI chat SDK for React applications",
+  "keywords": [
+    "react",
+    "ai",
+    "chat",
+    "sdk",
+    "chat-ui",
+    "streaming",
+    "sse",
+    "llm",
+    "headless"
+  ],
+  "author": "Anter AI <hello@anter.ai>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anter-ai/ai-chat-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/anter-ai/ai-chat-sdk/issues"
+  },
+  "homepage": "https://github.com/anter-ai/ai-chat-sdk#readme",
   "license": "MIT",
   "type": "module",
   "main": "dist/index.js",

@@ -1,8 +1,8 @@
 # `@anter/anter-adapter`
 
-The official [Anter](https://askinfosec.tech) backend adapter for [`@anter/ai-chat-sdk`](../ai-chat-sdk).
+The official [Anter](https://anter.ai) backend adapter for [`@anter/ai-chat-sdk`](../ai-chat-sdk).
 
-This package is a concrete implementation of the `ChatAdapter` interface that connects the SDK to the AskInfosec / Anter backend API. It lives as a sibling package so that `@anter/ai-chat-sdk` remains a truly generic, domain-agnostic SDK.
+This package is a concrete implementation of the `ChatAdapter` interface that connects the SDK to the Anter / Anter backend API. It lives as a sibling package so that `@anter/ai-chat-sdk` remains a truly generic, domain-agnostic SDK.
 
 ---
 
@@ -153,12 +153,12 @@ The adapter transparently maps the SDK's generic `contextId` context variable to
 
 ## Naming
 
-The class is exported as `AnterAdapter`. The old name `AskInfosecAdapter` is re-exported as a deprecated alias for backward compatibility and will be removed in a future major version.
+The class is exported as `AnterAdapter`. The old name `AnterAdapter` is re-exported as a deprecated alias for backward compatibility and will be removed in a future major version.
 
 ```typescript
 // Preferred
 import { AnterAdapter } from "@anter/anter-adapter";
 
 // Deprecated — still works, emits a JSDoc deprecation warning in IDEs
-import { AskInfosecAdapter } from "@anter/anter-adapter";
+import { AnterAdapter } from "@anter/anter-adapter";
 ```

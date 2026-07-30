@@ -14,7 +14,7 @@ import type { MessageSource } from "@anter/ai-chat-sdk/types";
 import type { SessionWithMessages } from "@anter/ai-chat-sdk/types";
 import { registerSlashCommand } from "@anter/ai-chat-sdk";
 
-// Maps SDK contextId values → AskInfosec backend framework codes.
+// Maps SDK contextId values → Anter backend framework codes.
 const CONTEXT_ID_TO_FRAMEWORK_CODE: Record<string, string> = {
   "soc2-type2": "soc2_type2",
   "soc2-type1": "soc2_type1",
@@ -363,7 +363,13 @@ export class AnterAdapter implements ChatAdapter {
           description: cmd.description,
           slashCommandId: cmd.id,
           exampleUsage: cmd.exampleUsage,
-          onSelect: ({ setValue, submit }) => {
+          onSelect: ({
+            setValue,
+            submit,
+          }: {
+            setValue: (v: string) => void;
+            submit: (v?: string) => void;
+          }) => {
             setValue(cmd.name);
             submit(cmd.name);
           },
@@ -426,8 +432,3 @@ export class AnterAdapter implements ChatAdapter {
     return response;
   }
 }
-
-/**
- * @deprecated Use `AnterAdapter` instead. This alias will be removed in a future release.
- */
-export const AskInfosecAdapter = AnterAdapter;

@@ -33,7 +33,7 @@ Before writing any code, ask yourself:
 
 If any answer is "yes", redesign the change. If you're unsure, open an issue first and describe the use case — we're happy to help find a generic solution.
 
-The only file allowed to contain domain-specific logic is `src/adapters/askinfosec-adapter.ts`. Everything else must be generic.
+The only file allowed to contain domain-specific logic is `src/adapters/Anter-adapter.ts`. Everything else must be generic.
 
 ---
 
@@ -110,7 +110,7 @@ src/
     command-palette/
     empty-state/
     …
-  adapters/      # AskInfosecAdapter (domain-specific; isolated here on purpose)
+  adapters/      # AnterAdapter (domain-specific; isolated here on purpose)
   styles/        # Pre-built CSS (ais-* prefix throughout)
   extensions/    # Slash command and command palette registries
   index.ts       # Main barrel export

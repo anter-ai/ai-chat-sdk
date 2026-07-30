@@ -16,7 +16,7 @@ import { defaultStrings } from "../types/config";
 
 interface ChatContextValue {
   adapter: ChatAdapter;
-  organizationId: string;
+  organizationId?: string;
   config: Required<ChatConfig>;
   strings: ChatStrings;
   plugins: ChatPlugins;
@@ -103,7 +103,7 @@ function generateThemeCss(themeOptions?: ChatThemeSpecification): string {
 interface ChatProviderProps {
   children: React.ReactNode;
   adapter: ChatAdapter;
-  organizationId: string;
+  organizationId?: string;
   config?: ChatConfig;
   strings?: Partial<ChatStrings>;
   plugins?: ChatPlugins;
@@ -114,7 +114,7 @@ interface ChatProviderProps {
 export function ChatProvider({
   children,
   adapter,
-  organizationId,
+  organizationId = "",
   config = {},
   strings = {},
   plugins = {},

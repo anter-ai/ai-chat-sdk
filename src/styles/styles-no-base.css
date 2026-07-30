@@ -1478,7 +1478,8 @@
   color: #22c55e;
 }
 
-/* RFP Mode toggle pill */
+/* Mode toggle pill */
+.ais-composer-mode-btn,
 .ais-composer-rfp-btn {
   border: 1.5px solid color-mix(in oklab, var(--message-ai-text) 25%, transparent);
   color: color-mix(in oklab, var(--message-ai-text) 55%, transparent);
@@ -1488,18 +1489,21 @@
   padding: 4px 10px;
 }
 
+.ais-composer-mode-btn:hover,
 .ais-composer-rfp-btn:hover {
   border-color: color-mix(in oklab, var(--message-ai-text) 55%, transparent);
   color: var(--message-ai-text);
   background: transparent;
 }
 
+.ais-composer-mode-btn--active,
 .ais-composer-rfp-btn--active {
   background: var(--chat-accent);
   border-color: var(--chat-accent);
   color: var(--chat-accent-foreground);
 }
 
+.ais-composer-mode-btn--active:hover,
 .ais-composer-rfp-btn--active:hover {
   background: var(--chat-accent-hover);
   border-color: var(--chat-accent-hover);

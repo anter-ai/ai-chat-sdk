@@ -1,1 +1,1 @@
-export { AnterAdapter, AskInfosecAdapter } from "./anter-adapter";
+export { AnterAdapter } from "./anter-adapter";

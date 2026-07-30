@@ -2,7 +2,7 @@ import type { ToolApproval } from "./chat";
 import type { Session, SessionWithMessages } from "./session";
 
 export interface SessionConfig {
-  organizationId: string;
+  organizationId?: string;
   contextId?: string;
   model?: string;
   title?: string;
@@ -25,7 +25,7 @@ export interface SessionList {
 }
 
 export interface MessagePayload {
-  organizationId: string;
+  organizationId?: string;
   sessionId: string;
   message: string;
   attachedFileIds?: string[];
@@ -50,6 +50,9 @@ export interface ChatSessionFileRef {
 }
 
 export interface UploadFileOptions {
+  /** Generic extra options dictionary for host application adapters */
+  options?: Record<string, unknown>;
+  /** @deprecated Domain-specific option; use generic `options` dictionary instead. */
   parseAsQuestionnaire?: boolean;
 }
 

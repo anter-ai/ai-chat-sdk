@@ -1,0 +1,1 @@
+{"version":3,"file":"files-panel.d.ts","sourceRoot":"","sources":["../../../src/ui/files-panel/files-panel.tsx"],"names":[],"mappings":"AAIA,OAAO,KAAK,EAAE,qBAAqB,EAAE,MAAM,wCAAwC,CAAC;AAIpF,UAAU,eAAe;IACvB,QAAQ,EAAE,qBAAqB,CAAC;IAChC,SAAS,CAAC,EAAE,MAAM,CAAC;CACpB;AAuDD,wBAAgB,UAAU,CAAC,EAAE,QAAQ,EAAE,SAAS,EAAE,EAAE,eAAe,kDA4DlE"}

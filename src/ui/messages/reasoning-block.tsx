@@ -25,6 +25,13 @@ function formatDuration(ms: number): string {
 /**
  * ReasoningBlock displays the internal "thinking" process of the AI agent.
  *
+ * NOTE ON STYLING:
+ * Every element here carries an `ais-`-prefixed class backed by real CSS in
+ * `src/styles/styles-no-base.css`. Do not lay this component out with Tailwind
+ * utilities — the SDK ships static CSS only, so utilities are dead classes in
+ * any host that does not compile Tailwind over `node_modules` (which Tailwind v4
+ * does not do by default, since `node_modules` is typically gitignored).
+ *
  * NOTE ON DUPLICATE LABELS:
  * You may see multiple occurrences of the same label (e.g., "Recalling context...") in the timeline.
  * This is expected behavior due to the backend's execution architecture:
@@ -101,35 +108,25 @@ export function ReasoningBlock({ steps, plan, isStreaming, elapsedMs }: Reasonin
     });
 
   return (
-    <div
-      className={cn("ais-reasoning-block mb-2 text-xs transition-all duration-200")}
-      aria-live="polite"
-    >
+    <div className="ais-reasoning-block" aria-live="polite">
       {/* Toggle header — whole row is clickable; no chevron. While streaming, an
           emerald gradient sweep + label shimmer convey "in progress" (see CSS). */}
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className={cn(
-          "ais-reasoning-toggle group flex w-full flex-col gap-1 rounded-md px-1.5 py-1.5 text-left transition-all",
-          "hover:bg-muted/40 active:scale-[0.99]",
-          isStreaming ? "text-foreground/90" : "text-muted-foreground hover:text-foreground",
-        )}
+        className={cn("ais-reasoning-toggle", isStreaming && "ais-reasoning-toggle--active")}
         aria-expanded={expanded}
       >
-        <div className="ais-reasoning-headrow flex w-full items-center gap-3">
+        <div className="ais-reasoning-headrow">
           <SparkleIcon
             spinning={isStreaming}
-            className={cn(
-              "shrink-0",
-              isStreaming ? "ais-reasoning-icon" : "ais-reasoning-icon--idle",
-            )}
+            className={isStreaming ? "ais-reasoning-icon" : "ais-reasoning-icon--idle"}
           />
 
           <span
             key={headerLabel}
             className={cn(
-              "ais-reasoning-label ais-reasoning-textfade flex-1 truncate tracking-tight",
+              "ais-reasoning-label ais-reasoning-textfade",
               isStreaming && "ais-reasoning-label--active",
             )}
           >
@@ -144,20 +141,14 @@ export function ReasoningBlock({ steps, plan, isStreaming, elapsedMs }: Reasonin
 
       {/* Expanded content */}
       {expanded && (
-        <div className="ais-reasoning-content relative px-1.5 pb-2 pt-1">
-          {/* Outer timeline line */}
-          <div className="absolute top-2 bottom-4 left-[2rem] w-px bg-gradient-to-b from-border/60 via-border/30 to-transparent" />
-
-          <div className="relative z-10 space-y-4">
+        <div className="ais-reasoning-content">
+          <div className="ais-reasoning-body">
             {/* Plan phases */}
             {plan?.length ? (
-              <ol className="space-y-2 pb-2">
+              <ol className="ais-reasoning-plan">
                 {plan.map((phase) => (
-                  <li
-                    key={phase.id}
-                    className="flex items-center gap-2 pl-6 text-muted-foreground/60"
-                  >
-                    <span className="h-1 w-1 rounded-full bg-muted-foreground/20" />
+                  <li key={phase.id} className="ais-reasoning-plan-item">
+                    <span className="ais-reasoning-plan-dot" aria-hidden />
                     {phase.label}
                   </li>
                 ))}
@@ -166,7 +157,7 @@ export function ReasoningBlock({ steps, plan, isStreaming, elapsedMs }: Reasonin
 
             {skillGroups ? (
               /* Two-level view: skill groups from triage */
-              <ol className="space-y-1">
+              <ol className="ais-reasoning-groups">
                 {skillGroups.map((group, groupIdx) => {
                   const isLastGroup = groupIdx === skillGroups.length - 1;
                   // Auto-expand the active skill while streaming; otherwise respect toggle state
@@ -182,17 +173,12 @@ export function ReasoningBlock({ steps, plan, isStreaming, elapsedMs }: Reasonin
                       <button
                         type="button"
                         onClick={() => toggleSkill(group.skill.step_id)}
-                        className={cn(
-                          "group/skill flex w-full items-center gap-2 rounded py-0.5 text-left transition-colors",
-                          "hover:bg-muted/30",
-                          isSkillCurrent
-                            ? "text-foreground/90"
-                            : "font-medium text-foreground/75 hover:text-foreground/90",
-                        )}
+                        className="ais-reasoning-skill-toggle"
+                        aria-expanded={isSkillOpen}
                       >
                         <span
                           className={cn(
-                            "ais-reasoning-label flex-1 truncate tracking-tight",
+                            "ais-reasoning-label",
                             isSkillCurrent && "ais-reasoning-label--active",
                           )}
                         >
@@ -200,13 +186,11 @@ export function ReasoningBlock({ steps, plan, isStreaming, elapsedMs }: Reasonin
                         </span>
                       </button>
 
-                      {/* Level 2: Tool steps within the skill */}
+                      {/* Level 2: Tool steps within the skill. The inner timeline line is
+                          the ::before guide on the wrapper below. */}
                       {isSkillOpen && group.steps.length > 0 && (
-                        <div className="relative ml-6 mt-0.5 pb-1">
-                          {/* Inner timeline line */}
-                          <div className="absolute bottom-0 left-[0.625rem] top-1 w-px bg-gradient-to-b from-border/40 via-border/20 to-transparent" />
-
-                          <ol className="space-y-1.5">
+                        <div className="ais-reasoning-substeps">
+                          <ol className="ais-reasoning-steps">
                             {group.steps.map((step, stepIdx) => {
                               const isCurrentStep =
                                 isStreaming && isLastGroup && stepIdx === group.steps.length - 1;
@@ -214,41 +198,40 @@ export function ReasoningBlock({ steps, plan, isStreaming, elapsedMs }: Reasonin
                               const isStepOpen = expandedSteps.has(step.step_id);
 
                               return (
-                                <li key={step.step_id} className="relative pl-5">
+                                <li key={step.step_id} className="ais-reasoning-step">
                                   {hasDetail ? (
                                     /* Collapsible step (has Level 3 detail) */
                                     <>
                                       <button
                                         type="button"
                                         onClick={() => toggleStep(step.step_id)}
-                                        className="flex w-full items-center gap-2 py-0.5 text-left transition-colors hover:text-foreground/70"
+                                        className="ais-reasoning-row ais-reasoning-row--button"
+                                        aria-expanded={isStepOpen}
                                       >
                                         <ChevronDown
                                           className={cn(
-                                            "h-2.5 w-2.5 shrink-0 text-muted-foreground/30 transition-transform duration-150",
-                                            !isStepOpen && "-rotate-90",
+                                            "ais-reasoning-chevron",
+                                            !isStepOpen && "ais-reasoning-chevron--collapsed",
                                           )}
                                           aria-hidden
                                         />
                                         <span
                                           className={cn(
-                                            "flex-1 truncate tracking-tight",
-                                            isCurrentStep
-                                              ? "animate-pulse text-foreground/90"
-                                              : "text-muted-foreground/70",
+                                            "ais-reasoning-step-label",
+                                            isCurrentStep && "ais-reasoning-step-label--current",
                                           )}
                                         >
                                           {step.label}
                                         </span>
                                         {typeof step.duration_ms === "number" && !isStreaming && (
-                                          <span className="shrink-0 font-mono text-[9px] text-muted-foreground/30 tabular-nums">
+                                          <span className="ais-reasoning-duration">
                                             {formatDuration(step.duration_ms)}
                                           </span>
                                         )}
                                       </button>
                                       {/* Level 3: detail lines */}
                                       {isStepOpen && (
-                                        <div className="ml-5 mt-0.5 space-y-0.5 text-[10px] leading-relaxed text-muted-foreground/40">
+                                        <div className="ais-reasoning-detail">
                                           {step.detail!.split("\n").map((line, i) => (
                                             <div key={i}>{line}</div>
                                           ))}
@@ -257,20 +240,18 @@ export function ReasoningBlock({ steps, plan, isStreaming, elapsedMs }: Reasonin
                                     </>
                                   ) : (
                                     /* Non-collapsible step */
-                                    <div className="flex items-center gap-2 py-0.5">
-                                      <div className="w-2.5 shrink-0" />
+                                    <div className="ais-reasoning-row">
+                                      <div className="ais-reasoning-chevron-spacer" aria-hidden />
                                       <span
                                         className={cn(
-                                          "flex-1 truncate tracking-tight",
-                                          isCurrentStep
-                                            ? "animate-pulse text-foreground/90"
-                                            : "text-muted-foreground/70",
+                                          "ais-reasoning-step-label",
+                                          isCurrentStep && "ais-reasoning-step-label--current",
                                         )}
                                       >
                                         {step.label}
                                       </span>
                                       {typeof step.duration_ms === "number" && !isStreaming && (
-                                        <span className="shrink-0 font-mono text-[9px] text-muted-foreground/30 tabular-nums">
+                                        <span className="ais-reasoning-duration">
                                           {formatDuration(step.duration_ms)}
                                         </span>
                                       )}
@@ -287,63 +268,50 @@ export function ReasoningBlock({ steps, plan, isStreaming, elapsedMs }: Reasonin
                 })}
 
                 {!isStreaming && steps.length > 0 && (
-                  <li className="flex items-center gap-2 py-0.5 pl-6 opacity-60">
-                    <div className="w-3 shrink-0" />
-                    <span className="tracking-tight text-muted-foreground/80">
-                      Reasoning complete
-                    </span>
+                  <li className="ais-reasoning-done">
+                    <span className="ais-reasoning-step-label">Reasoning complete</span>
                   </li>
                 )}
               </ol>
             ) : (
               /* Flat fallback — no triage / no handoff events */
-              <ol className="space-y-3">
+              <ol className="ais-reasoning-steps ais-reasoning-steps--flat">
                 {steps.map((step, index) => {
                   const isCurrentStep = isStreaming && index === steps.length - 1;
                   return (
                     <li
                       key={step.step_id}
                       className={cn(
-                        "group relative flex items-start gap-3 transition-opacity duration-200",
-                        !isCurrentStep && !isStreaming
-                          ? "opacity-70 hover:opacity-100"
-                          : "opacity-100",
+                        "ais-reasoning-step ais-reasoning-step--flat",
+                        !isCurrentStep && !isStreaming && "ais-reasoning-step--past",
                       )}
                     >
-                      <div className="w-2 shrink-0" />
-                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <div className="flex items-center justify-between gap-2">
+                      <div className="ais-reasoning-step-body">
+                        <div className="ais-reasoning-row">
                           <span
                             className={cn(
-                              "truncate tracking-tight",
-                              isCurrentStep
-                                ? "animate-pulse text-foreground/90"
-                                : "text-muted-foreground/80",
+                              "ais-reasoning-step-label",
+                              isCurrentStep && "ais-reasoning-step-label--current",
                             )}
                           >
                             {step.label}
                           </span>
                           {typeof step.duration_ms === "number" && !isStreaming && (
-                            <span className="shrink-0 font-mono text-[9px] text-muted-foreground/30 tabular-nums">
+                            <span className="ais-reasoning-duration">
                               {formatDuration(step.duration_ms)}
                             </span>
                           )}
                         </div>
                         {step.detail && (
-                          <span className="truncate text-[10px] leading-tight text-muted-foreground/40">
-                            {step.detail}
-                          </span>
+                          <span className="ais-reasoning-detail--inline">{step.detail}</span>
                         )}
                       </div>
                     </li>
                   );
                 })}
                 {!isStreaming && (
-                  <li className="flex items-start gap-3 opacity-60">
-                    <div className="w-2 shrink-0" />
-                    <span className="tracking-tight text-muted-foreground/80">
-                      Reasoning complete
-                    </span>
+                  <li className="ais-reasoning-step ais-reasoning-done">
+                    <span className="ais-reasoning-step-label">Reasoning complete</span>
                   </li>
                 )}
               </ol>
@@ -363,7 +331,7 @@ function SparkleIcon({ spinning, className }: { spinning: boolean; className?: s
       viewBox="0 0 24 24"
       fill="currentColor"
       aria-hidden
-      className={cn(spinning && "ais-spin animate-spin", className)}
+      className={cn(spinning && "ais-spin", className)}
     >
       <path d="M12 1L9.5 9.5L1 12L9.5 14.5L12 23L14.5 14.5L23 12L14.5 9.5Z" />
     </svg>

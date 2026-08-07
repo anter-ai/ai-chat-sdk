@@ -6,7 +6,15 @@ import onlyWarn from "eslint-plugin-only-warn";
 /** @type {import('eslint').Linter.Config} */
 export default [
   {
-    ignores: ["dist/**", "node_modules/**", "coverage/**", "**/*.cjs", "**/*.js", "**/*.config.ts"],
+    ignores: [
+      "dist/**",
+      "node_modules/**",
+      "coverage/**",
+      "**/*.cjs",
+      "**/*.js",
+      "**/*.config.ts",
+      "scripts/**",
+    ],
   },
   js.configs.recommended,
   eslintConfigPrettier,

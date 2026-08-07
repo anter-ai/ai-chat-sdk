@@ -15,6 +15,7 @@ Thank you for your interest in contributing. This document covers everything you
 - [Code style](#code-style)
 - [Commit messages](#commit-messages)
 - [Opening a pull request](#opening-a-pull-request)
+- [Cutting a `dist` snapshot](#cutting-a-dist-snapshot)
 - [Reporting bugs](#reporting-bugs)
 - [Requesting features](#requesting-features)
 
@@ -224,6 +225,55 @@ Keep the subject line under 72 characters. Add a body if the motivation isn't ob
 5. Fill out the PR template checklist, especially the agnostic contract section.
 
 PRs that touch the public API (`ChatAdapter`, `ChatConfig`, `ChatStrings`, `ChatPlugins`) must update `README.md` in the same PR.
+
+---
+
+## Cutting a `dist` snapshot
+
+This package is not on npm yet. Until it is, consumers install it through a plain git
+dependency, with no build step:
+
+```json
+"@anter/ai-chat-sdk": "git+https://github.com/anter-ai/ai-chat-sdk.git#dist"
+```
+
+This works against a dedicated orphan branch (`dist`) that holds nothing but a prebuilt
+snapshot — `dist/` (JS, `.d.ts`, and the stylesheets), `LICENSE`, `README.md`, and a
+`package.json` with `devDependencies` **and `scripts`** stripped out. Dropping `scripts` is
+what makes the branch installable at all: the source manifest carries a `prepare` hook that
+rebuilds from `src/`, and pnpm runs `prepare` on every git dependency — on a branch with no
+`src/` and no devDependencies, that hook would fail every consumer's install.
+
+To cut a new snapshot after a change, run the full gate, build, stage, import, and push in one
+command:
+
+```bash
+pnpm publish:dist
+```
+
+This runs (in order): `check-all` (format → lint → type-check → build), `test`,
+`prepare:git-dist` (stages `.git-dist/`), `deploy:git-dist` (imports the clean orphan commit as
+the local `dist` branch), then `git push -u origin dist --force-with-lease`. Any gate failure
+stops the chain before anything is staged or pushed. Equivalent to running by hand:
+
+```bash
+pnpm check-all
+pnpm test
+pnpm prepare:git-dist   # stages .git-dist/
+pnpm deploy:git-dist    # imports the clean orphan commit
+
+git push -u origin dist --force-with-lease
+```
+
+`prepare:git-dist` refuses to stage anything unless every path reachable from the `exports` map
+exists on disk. The stylesheets are the ones that realistically go missing — they are copied by
+a trailing `cp` in the build script rather than emitted by tsup, so a partial build leaves the
+JS in place and the CSS absent.
+
+Consumers pin the branch head through their own lockfile; on the `agent-builder` side that is
+`pnpm bump:ai-chat-sdk`. Once this package is published to npm, prefer a real
+`"@anter/ai-chat-sdk": "^x.y.z"` dependency instead — the git branch is an early-access
+convenience, not a long-term distribution channel.
 
 ---
 

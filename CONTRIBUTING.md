@@ -163,6 +163,8 @@ The `ChatAdapter` interface is a public API that all consumers implement. Any br
 
 All styles use the `ais-` prefix. `ChatProvider` renders a `[data-chat-provider]` wrapper — all SDK selectors should be scoped to it. Do not introduce new runtime style dependencies (no Tailwind runtime, no CSS-in-JS).
 
+This applies to component markup too: never lay a component out with Tailwind utility classes (`flex`, `w-full`, `text-left`, `pl-6`, `space-y-*`). The SDK ships static CSS, so those classes match nothing in a host that does not compile Tailwind over `node_modules` — which Tailwind v4 does not do by default, since `node_modules` is normally gitignored. The element then falls back to UA defaults (a `<button>` centers its text, indentation disappears). Add an `ais-` class and a rule in `src/styles/styles-no-base.css` instead; `src/ui/messages/reasoning-block.spec.tsx` shows how to assert this in a test.
+
 ---
 
 ## Testing

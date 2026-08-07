@@ -3390,8 +3390,16 @@
   }
 }
 
+/* ── Reasoning block ───────────────────────────────────────────────────────────
+   Every element in `ui/messages/reasoning-block.tsx` is laid out from here. The
+   SDK ships static CSS only, so that component must never rely on Tailwind
+   utilities: a host on Tailwind v4 scans its own sources and skips
+   `node_modules`, which leaves utility classes unmatched and drops the tree back
+   to UA defaults (centered button text, no indentation). */
 .ais-reasoning-block {
   margin-bottom: 8px;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .ais-reasoning-toggle {
@@ -3404,10 +3412,18 @@
   gap: 4px;
   border: none;
   background: transparent;
-  color: var(--message-ai-text);
+  color: color-mix(in oklab, var(--message-ai-text, #111827) 70%, transparent);
+  font: inherit;
   text-align: left;
   padding: 2px 0;
+  border-radius: var(--chat-radius-sm, 6px);
   cursor: pointer;
+}
+
+/* Streaming: the header carries full-strength text; idle stays quiet. */
+.ais-reasoning-toggle--active,
+.ais-reasoning-toggle:hover {
+  color: var(--message-ai-text);
 }
 
 .ais-reasoning-icon {
@@ -3424,8 +3440,16 @@
 }
 
 .ais-reasoning-content {
+  position: relative;
   margin-top: 4px;
   margin-left: 22px;
+  padding-bottom: 8px;
+}
+
+.ais-reasoning-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 /* Header row — clear breathing room between the sparkle and the label. */
@@ -3472,6 +3496,226 @@
     color-mix(in oklab, var(--chat-border, #d4d4d8) 28%, transparent) 65%,
     transparent
   );
+}
+
+/* Plan phases — the optional preamble above the skill groups. */
+.ais-reasoning-plan {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: color-mix(in oklab, var(--message-ai-text, #111827) 55%, transparent);
+}
+
+.ais-reasoning-plan-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 16px;
+}
+
+.ais-reasoning-plan-dot {
+  flex: none;
+  width: 4px;
+  height: 4px;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0.5;
+}
+
+.ais-reasoning-groups,
+.ais-reasoning-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Level 1 — the skill group header row. */
+.ais-reasoning-skill-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 1px 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: color-mix(in oklab, var(--message-ai-text, #111827) 78%, transparent);
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ais-reasoning-skill-toggle:hover {
+  color: var(--message-ai-text);
+}
+
+/* Level 2 — tool steps, guided by a soft line under the skill label. */
+.ais-reasoning-substeps {
+  position: relative;
+  margin-top: 2px;
+  margin-left: 6px;
+  padding-bottom: 4px;
+}
+
+.ais-reasoning-substeps::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 2px;
+  bottom: 2px;
+  width: 1px;
+  border-radius: 1px;
+  background-image: linear-gradient(
+    to bottom,
+    color-mix(in oklab, var(--chat-border, #d4d4d8) 55%, transparent),
+    color-mix(in oklab, var(--chat-border, #d4d4d8) 20%, transparent) 65%,
+    transparent
+  );
+}
+
+.ais-reasoning-steps {
+  gap: 6px;
+}
+
+.ais-reasoning-step {
+  padding-left: 12px;
+}
+
+/* A step row is either a plain div or, when it has level-3 detail, a button. */
+.ais-reasoning-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 1px 0;
+  text-align: left;
+}
+
+.ais-reasoning-row--button {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ais-reasoning-chevron {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  color: color-mix(in oklab, var(--message-ai-text, #111827) 30%, transparent);
+  transition: transform 150ms ease;
+}
+
+.ais-reasoning-chevron--collapsed {
+  transform: rotate(-90deg);
+}
+
+/* Keeps chevron-less steps aligned with collapsible ones. */
+.ais-reasoning-chevron-spacer {
+  flex: none;
+  width: 10px;
+}
+
+.ais-reasoning-step-label {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: color-mix(in oklab, var(--message-ai-text, #111827) 62%, transparent);
+}
+
+.ais-reasoning-row--button:hover .ais-reasoning-step-label {
+  color: color-mix(in oklab, var(--message-ai-text, #111827) 82%, transparent);
+}
+
+/* The step currently executing — full strength plus a slow breathing pulse. */
+.ais-reasoning-step-label--current {
+  color: var(--message-ai-text);
+  animation: ais-reasoning-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes ais-reasoning-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.ais-reasoning-duration {
+  flex: none;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in oklab, var(--message-ai-text, #111827) 30%, transparent);
+}
+
+/* Level 3 — detail lines revealed under a collapsible step. */
+.ais-reasoning-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
+  margin-left: 18px;
+  font-size: 10px;
+  line-height: 1.5;
+  color: color-mix(in oklab, var(--message-ai-text, #111827) 40%, transparent);
+}
+
+.ais-reasoning-detail--inline {
+  font-size: 10px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: color-mix(in oklab, var(--message-ai-text, #111827) 40%, transparent);
+}
+
+.ais-reasoning-done {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 16px;
+  opacity: 0.6;
+}
+
+/* Flat fallback — rendered when no handoff events split the run into skills. */
+.ais-reasoning-steps--flat {
+  gap: 12px;
+}
+
+.ais-reasoning-step--flat {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding-left: 8px;
+  transition: opacity 200ms ease;
+}
+
+.ais-reasoning-step--past {
+  opacity: 0.7;
+}
+
+.ais-reasoning-step--past:hover {
+  opacity: 1;
+}
+
+.ais-reasoning-step-body {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
 }
 
 /* ── Streaming "alive" cues for the reasoning header ───────────────────────────
@@ -3549,6 +3793,9 @@
     background-position: 50% 0;
   }
   .ais-reasoning-textfade {
+    animation: none;
+  }
+  .ais-reasoning-step-label--current {
     animation: none;
   }
 }

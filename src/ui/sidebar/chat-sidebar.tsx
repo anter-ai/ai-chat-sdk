@@ -89,6 +89,12 @@ export function ChatSidebar({
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const isStreamingRef = React.useRef(isStreaming);
   const prevArtifactOpenRef = React.useRef<boolean | undefined>(undefined);
+  // What `collapsed` was right before the artifact panel auto-collapsed it, so
+  // closing the panel can restore it — and whether the user explicitly touched
+  // the toggle while the panel was open, in which case we defer to them instead
+  // of stomping their choice back to the pre-collapse value.
+  const preAutoCollapseRef = React.useRef(false);
+  const userToggledDuringArtifactRef = React.useRef(false);
 
   const displaySessions = useMemo(() => {
     const hasCurrent = sessions.some((s) => s.sessionId === currentSessionId);
@@ -110,9 +116,17 @@ export function ChatSidebar({
 
   // REQ-02: auto-collapse the sidebar the moment the artifact panel opens,
   // but allow the user to re-expand it afterwards (edge-trigger, not a lock).
+  // Closing the panel restores whatever the sidebar was before, unless the
+  // user explicitly toggled it while the panel was open — that choice wins.
   useEffect(() => {
     if (artifactPanelOpen && !prevArtifactOpenRef.current) {
+      preAutoCollapseRef.current = collapsed;
+      userToggledDuringArtifactRef.current = false;
       setCollapsed(true);
+    } else if (!artifactPanelOpen && prevArtifactOpenRef.current) {
+      if (!userToggledDuringArtifactRef.current) {
+        setCollapsed(preAutoCollapseRef.current);
+      }
     }
     prevArtifactOpenRef.current = artifactPanelOpen;
   }, [artifactPanelOpen]);
@@ -165,10 +179,6 @@ export function ChatSidebar({
       setCollapsed(false);
     }
   }, [isOpen]);
-
-  useEffect(() => {
-    window.localStorage.setItem("ais-chat-sidebar-collapsed", collapsed ? "1" : "0");
-  }, [collapsed]);
 
   const topNavItems = useMemo<SidebarNavItem[]>(() => {
     const items: SidebarNavItem[] = [
@@ -266,7 +276,20 @@ export function ChatSidebar({
             if (window.innerWidth <= SIDEBAR_OVERLAY_BREAKPOINT_PX && onToggle) {
               onToggle();
             } else {
-              setCollapsed((prev) => !prev);
+              // An explicit user choice — persist it directly here (rather than
+              // via a blanket effect on every `collapsed` change) so the
+              // artifact-panel auto-collapse/restore above never overwrites it,
+              // and mark it so the panel-close restore defers to this instead.
+              userToggledDuringArtifactRef.current = true;
+              setCollapsed((prev) => {
+                const next = !prev;
+                try {
+                  window.localStorage.setItem("ais-chat-sidebar-collapsed", next ? "1" : "0");
+                } catch {
+                  // ignore localStorage errors
+                }
+                return next;
+              });
             }
           }}
           type="button"

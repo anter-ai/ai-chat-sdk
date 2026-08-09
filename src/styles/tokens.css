@@ -18,9 +18,21 @@
   --chat-radius-lg: 16px;
   --chat-sidebar-width: 288px;
   --chat-artifact-width: 400px;
+
+  /* Floating-card tokens (sources panel, files panel). Resolved here — on the
+     same [data-chat-provider] element, alongside --chat-bg — rather than via a
+     `[data-theme="dark"] .ais-sources-panel`-style descendant selector on the
+     panel itself. A descendant combinator matches ANY ancestor provider, so a
+     host that nests ChatProviders (e.g. a global assistant widget wrapping a
+     page that renders its own ChatShell) would leak the outer provider's theme
+     into the inner one's floating panels. Resolving it here, the same way
+     --chat-bg already does, keeps it scoped to the nearest provider only. */
+  --ais-floating-panel-bg: var(--chat-bg);
+  --ais-floating-panel-border: var(--chat-border);
+  --ais-floating-panel-card-bg: color-mix(in oklab, var(--chat-bg) 96%, var(--message-ai-text) 4%);
 }
 
-/* Dark mode overrides: 
+/* Dark mode overrides:
    1. If data-theme is explicitly 'dark'
    2. If host has .dark class and SDK is in 'system' (default) or 'dark' theme
 */
@@ -39,6 +51,10 @@
   /* Adjusted accent for dark mode */
   --chat-accent: #2f81f7;
   --chat-accent-hover: #58a6ff;
+
+  --ais-floating-panel-bg: #131314;
+  --ais-floating-panel-border: color-mix(in oklab, var(--chat-border) 80%, transparent);
+  --ais-floating-panel-card-bg: color-mix(in oklab, var(--chat-bg) 94%, white 6%);
 }
 
 @keyframes ais-chip-pulse {

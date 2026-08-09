@@ -2546,11 +2546,11 @@
 /* ─── Sources Panel (Redesign) ────────────────────────── */
 
 .ais-sources-panel {
-  --ais-sp-bg: var(--chat-bg);
-  --ais-sp-card-bg: color-mix(in oklab, var(--chat-bg) 96%, var(--message-ai-text) 4%);
+  --ais-sp-bg: var(--ais-floating-panel-bg);
+  --ais-sp-card-bg: var(--ais-floating-panel-card-bg);
   --ais-sp-text: var(--message-ai-text);
   --ais-sp-muted: color-mix(in oklab, var(--message-ai-text) 60%, transparent);
-  --ais-sp-border: var(--chat-border);
+  --ais-sp-border: var(--ais-floating-panel-border);
 
   /* Floating card style - Spacing refined */
   margin: 0 24px;
@@ -2565,14 +2565,6 @@
   border: 1px solid var(--ais-sp-border);
   border-radius: 28px;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
-}
-
-/* Maintain card aesthetic but use theme variables for background */
-[data-chat-provider][data-theme="dark"] .ais-sources-panel,
-:where(.dark) [data-chat-provider]:not([data-theme="light"]) .ais-sources-panel {
-  --ais-sp-bg: #131314;
-  --ais-sp-card-bg: color-mix(in oklab, var(--chat-bg) 94%, white 6%);
-  --ais-sp-border: color-mix(in oklab, var(--chat-border) 80%, transparent);
 }
 
 .ais-sp-accent-bar {
@@ -2773,8 +2765,16 @@
 
 /* Files panel */
 .ais-files-panel {
-  --ais-fp-bg: var(--chat-bg);
-  --ais-fp-border: var(--chat-border);
+  --ais-fp-bg: var(--ais-floating-panel-bg);
+  --ais-fp-border: var(--ais-floating-panel-border);
+  /* Its header/title/close/body/empty-state markup reuses the sources panel's
+     ais-sp-* classes (same "Files"/"Sources" floating-card layout), but this
+     element never carries the .ais-sources-panel class that defines those
+     variables — alias them here so ais-sp-title/-close/-empty resolve instead
+     of falling back to an undefined custom property. */
+  --ais-sp-text: var(--message-ai-text);
+  --ais-sp-muted: color-mix(in oklab, var(--message-ai-text) 60%, transparent);
+  --ais-sp-border: var(--ais-fp-border);
 
   display: flex;
   flex-direction: column;
@@ -2789,12 +2789,6 @@
   height: calc(var(--ais-available-height, 100vh) - var(--ais-shell-header-height) - 44px);
   max-height: calc(var(--ais-available-height, 100vh) - var(--ais-shell-header-height) - 44px);
   border-radius: 28px;
-}
-
-[data-chat-provider][data-theme="dark"] .ais-files-panel,
-:where(.dark) [data-chat-provider]:not([data-theme="light"]) .ais-files-panel {
-  --ais-fp-bg: #131314;
-  --ais-fp-border: color-mix(in oklab, var(--chat-border) 80%, transparent);
 }
 
 .ais-fp-count {

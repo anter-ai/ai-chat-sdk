@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import type { ChatMessage, StreamingState } from "../../headless/types/chat";
+import type { ResumeState } from "../../headless/types/session";
 import { ChatStateProvider, useChat } from "../../headless/hooks/use-chat";
 import { useArtifacts, type UseArtifactsReturn } from "../../headless/hooks/use-artifacts";
 import { useSources, type UseSourcesReturn } from "../../headless/hooks/use-sources";
@@ -66,6 +68,17 @@ interface ChatShellProps {
   sidebarLinks?: SidebarNavLink[];
   /** Whether to hide the default message actions (e.g. copy, retry). */
   hideMessageActions?: boolean;
+  /**
+   * Generic streaming-state callback. Fires from inside ChatStateProvider
+   * whenever isStreaming or resumeState transitions (edge only, not per token).
+   * Keeps the SDK agnostic — hosts can drive banners/notifications.
+   */
+  onStreamingChange?: (
+    isStreaming: boolean,
+    messages: ChatMessage[],
+    resumeState: ResumeState,
+    executionId?: string,
+  ) => void;
 }
 
 export function ChatShell({
@@ -84,6 +97,7 @@ export function ChatShell({
   hideArtifactsLink,
   sidebarLinks,
   hideMessageActions,
+  onStreamingChange,
 }: ChatShellProps) {
   const { config } = useChatContext();
   const artifactsCtx = useArtifacts();
@@ -111,6 +125,7 @@ export function ChatShell({
         hideArtifactsLink={hideArtifactsLink}
         sidebarLinks={sidebarLinks}
         hideMessageActions={hideMessageActions}
+        onStreamingChange={onStreamingChange}
       />
     </ChatStateProvider>
   );
@@ -143,6 +158,7 @@ function ChatShellContent({
   hideArtifactsLink,
   sidebarLinks,
   hideMessageActions,
+  onStreamingChange,
 }: ChatShellContentProps) {
   const {
     sendMessage,
@@ -155,7 +171,31 @@ function ChatShellContent({
     currentSessionTitle,
     resumeState,
     resumeRun,
+    messages,
+    streamingState,
   } = useChat();
+  const prevStreamingRef = useRef({ isStreaming, resumeState });
+  useEffect(() => {
+    if (!onStreamingChange) return;
+    if (
+      prevStreamingRef.current.isStreaming === isStreaming &&
+      prevStreamingRef.current.resumeState === resumeState
+    )
+      return;
+    prevStreamingRef.current = { isStreaming, resumeState };
+    onStreamingChange(
+      isStreaming,
+      messages,
+      resumeState,
+      (streamingState as StreamingState | undefined)?.executionId,
+    );
+  }, [
+    isStreaming,
+    messages,
+    resumeState,
+    (streamingState as StreamingState | undefined)?.executionId,
+    onStreamingChange,
+  ]);
   const { setTopBanner, setBottomBanner, config } = useChatContext();
 
   React.useEffect(() => {

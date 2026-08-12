@@ -104,7 +104,10 @@ export function ChatShell({
   const sourcesCtx = useSources();
   const filesCtx = useSessionFiles();
   return (
-    <ChatStateProvider onArtifactsReady={artifactsCtx.registerArtifacts}>
+    <ChatStateProvider
+      onArtifactsReady={artifactsCtx.registerArtifacts}
+      onClearArtifacts={artifactsCtx.clearArtifacts}
+    >
       <ChatShellContent
         artifactsCtx={artifactsCtx}
         sourcesCtx={sourcesCtx}

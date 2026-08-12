@@ -12,6 +12,7 @@ export interface UseArtifactsReturn {
   setActiveTab: (tab: ArtifactTab) => void;
   registerArtifacts: (nextArtifacts: Artifact[]) => void;
   markSaved: (artifactId: string, record: LinkedRecord) => void;
+  clearArtifacts: () => void;
 }
 
 export function useArtifacts(): UseArtifactsReturn {
@@ -21,6 +22,11 @@ export function useArtifacts(): UseArtifactsReturn {
     activeArtifactId: undefined,
     activeTab: "preview",
   });
+
+  const clearArtifacts = useCallback(() => {
+    setArtifacts(new Map());
+    setPanelState((prev) => ({ ...prev, isOpen: false, activeArtifactId: undefined }));
+  }, []);
 
   const activeArtifact = useMemo(() => {
     if (!panelState.activeArtifactId) return undefined;
@@ -86,6 +92,7 @@ export function useArtifacts(): UseArtifactsReturn {
       setActiveTab,
       registerArtifacts,
       markSaved,
+      clearArtifacts,
     }),
     [
       artifacts,
@@ -96,6 +103,7 @@ export function useArtifacts(): UseArtifactsReturn {
       setActiveTab,
       registerArtifacts,
       markSaved,
+      clearArtifacts,
     ],
   );
 }

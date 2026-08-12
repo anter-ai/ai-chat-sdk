@@ -74,7 +74,10 @@ export function ChatSidepanel(props: ChatSidepanelProps) {
   const filesCtx = useSessionFiles();
 
   return (
-    <ChatStateProvider onArtifactsReady={artifactsCtx.registerArtifacts}>
+    <ChatStateProvider
+      onArtifactsReady={artifactsCtx.registerArtifacts}
+      onClearArtifacts={artifactsCtx.clearArtifacts}
+    >
       <ChatSidepanelContent
         artifactsCtx={artifactsCtx}
         sourcesCtx={sourcesCtx}

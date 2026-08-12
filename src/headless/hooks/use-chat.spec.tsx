@@ -14,7 +14,7 @@ import { describe, it, expect, jest } from "@jest/globals";
 import React from "react";
 import { renderHook, act } from "@testing-library/react";
 import { ChatProvider } from "../context/chat-provider";
-import { useChat } from "./use-chat";
+import { useChat, ChatStateProvider } from "./use-chat";
 import type { ChatAdapter } from "../types/adapter";
 
 type GetExecutionStream = NonNullable<ChatAdapter["getExecutionStream"]>;
@@ -229,5 +229,58 @@ describe("useChat stream-drop recovery", () => {
       "The connection was lost before the response finished. Retry to continue.",
     );
     expect(assistant?.isStreaming).toBe(false);
+  });
+});
+
+describe("useChat artifacts lifecycle", () => {
+  it("clears artifacts when loadSession or clearMessages is called", async () => {
+    const onArtifactsReady = jest.fn();
+    const onClearArtifacts = jest.fn();
+    const adapter = makeAdapter({});
+
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <ChatProvider adapter={adapter} organizationId="org-1">
+        <ChatStateProvider onArtifactsReady={onArtifactsReady} onClearArtifacts={onClearArtifacts}>
+          {children}
+        </ChatStateProvider>
+      </ChatProvider>
+    );
+
+    const { result } = renderHook(() => useChat(), { wrapper });
+
+    act(() => {
+      result.current.loadSession({
+        sessionId: "sess-1",
+        title: "Session 1",
+        updatedAt: "2026-08-12T00:00:00Z",
+        messages: [],
+        artifacts: [
+          {
+            artifactId: "art-1",
+            title: "Spec 1",
+            type: "agent-spec",
+            content: "{}",
+            exportFormats: ["markdown"],
+          },
+        ],
+      });
+    });
+
+    expect(onClearArtifacts).toHaveBeenCalledTimes(1);
+    expect(onArtifactsReady).toHaveBeenCalledWith([
+      {
+        artifactId: "art-1",
+        title: "Spec 1",
+        type: "agent-spec",
+        content: "{}",
+        exportFormats: ["markdown"],
+      },
+    ]);
+
+    act(() => {
+      result.current.clearMessages();
+    });
+
+    expect(onClearArtifacts).toHaveBeenCalledTimes(2);
   });
 });

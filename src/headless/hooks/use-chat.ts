@@ -150,7 +150,10 @@ export interface UseChatReturn {
 
 const ChatStateContext = createContext<UseChatReturn | null>(null);
 
-function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): UseChatReturn {
+function useProvideChat(
+  onArtifactsReady?: (artifacts: Artifact[]) => void,
+  onClearArtifacts?: () => void,
+): UseChatReturn {
   const {
     adapter,
     organizationId,
@@ -186,6 +189,8 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
   const lastUserMessageRef = useRef<string>("");
   const onArtifactsReadyRef = useRef(onArtifactsReady);
   onArtifactsReadyRef.current = onArtifactsReady;
+  const onClearArtifactsRef = useRef(onClearArtifacts);
+  onClearArtifactsRef.current = onClearArtifacts;
   const accumContentRef = useRef("");
   // Per-stream counter giving repeatable runner control events (tool calls, handoffs)
   // unique step ids. Reset at the start of each sendMessage.
@@ -208,6 +213,7 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
     setIsLoading(false);
     setCurrentSession(undefined);
     setActiveContext(undefined);
+    onClearArtifactsRef.current?.();
   }, [setCurrentSession, setActiveContext]);
 
   const consumeStream = useCallback(
@@ -977,6 +983,7 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
   const loadSession = useCallback(
     (session: SessionWithMessages) => {
       abortControllerRef.current?.abort();
+      onClearArtifactsRef.current?.();
       setCurrentSession({
         sessionId: session.sessionId,
         title: session.title,
@@ -1185,11 +1192,13 @@ function useProvideChat(onArtifactsReady?: (artifacts: Artifact[]) => void): Use
 export function ChatStateProvider({
   children,
   onArtifactsReady,
+  onClearArtifacts,
 }: {
   children: ReactNode;
   onArtifactsReady?: (artifacts: Artifact[]) => void;
+  onClearArtifacts?: () => void;
 }) {
-  const chatState = useProvideChat(onArtifactsReady);
+  const chatState = useProvideChat(onArtifactsReady, onClearArtifacts);
   return createElement(ChatStateContext.Provider, { value: chatState }, children);
 }
 

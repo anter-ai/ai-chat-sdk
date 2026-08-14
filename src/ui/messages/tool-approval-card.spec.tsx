@@ -73,6 +73,18 @@ describe("ToolApprovalCard", () => {
     expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
   });
 
+  it("omits the args block for a tool call with no arguments", () => {
+    const { container } = render(
+      <ToolApprovalCard
+        approval={{ ...pendingApproval, toolName: "get_account", args: {} }}
+        canResolve
+        onResolve={jest.fn()}
+      />,
+    );
+
+    expect(container.querySelector(".ais-tool-approval-args")).not.toBeInTheDocument();
+  });
+
   it("surfaces a resolution error and keeps the card actionable", () => {
     render(
       <ToolApprovalCard

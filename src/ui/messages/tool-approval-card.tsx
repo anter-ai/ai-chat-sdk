@@ -38,6 +38,7 @@ function humanizeRisk(riskCategory: string): string {
 
 function formatArgs(args: unknown): string | null {
   if (args === undefined || args === null) return null;
+  if (typeof args === "object" && Object.keys(args as object).length === 0) return null;
   try {
     return typeof args === "string" ? args : JSON.stringify(args, null, 2);
   } catch {

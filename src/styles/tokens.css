@@ -19,6 +19,14 @@
   --chat-sidebar-width: 288px;
   --chat-artifact-width: 400px;
 
+  /* Safe Area Insets (iOS notch, Dynamic Island, Home Indicator & rounded corners) */
+  --ais-safe-top: env(safe-area-inset-top, 0px);
+  --ais-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --ais-safe-left: env(safe-area-inset-left, 0px);
+  --ais-safe-right: env(safe-area-inset-right, 0px);
+  --ais-corner-clearance: 8px;
+  --ais-safe-bottom-total: calc(var(--ais-safe-bottom) + var(--ais-corner-clearance));
+
   /* Floating-card tokens (sources panel, files panel). Resolved here — on the
      same [data-chat-provider] element, alongside --chat-bg — rather than via a
      `[data-theme="dark"] .ais-sources-panel`-style descendant selector on the

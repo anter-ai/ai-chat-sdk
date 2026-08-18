@@ -109,4 +109,56 @@ describe("ChatShell banner slots", () => {
 
     expect(screen.getByText("Want to be notified when the AI responds?")).toBeInTheDocument();
   });
+
+  it("shrinks to the visual viewport when the mobile keyboard is open", () => {
+    const originalMatchMedia = window.matchMedia;
+    const originalViewport = Object.getOwnPropertyDescriptor(window, "visualViewport");
+    const originalInnerHeight = window.innerHeight;
+
+    window.matchMedia = jest.fn().mockImplementation((query: string) => ({
+      matches: query.includes("767"),
+      media: query,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+    }));
+    Object.defineProperty(window, "visualViewport", {
+      value: {
+        height: 420,
+        offsetTop: 0,
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+      },
+      configurable: true,
+    });
+    Object.defineProperty(window, "innerHeight", { value: 800, configurable: true });
+
+    const { container } = render(
+      <ChatProvider
+        adapter={
+          {
+            createSession: jest.fn(),
+            listSessions: jest.fn().mockResolvedValue([]),
+            loadSession: jest.fn(),
+            sendMessage: jest.fn(),
+          } as any
+        }
+        organizationId="org-1"
+        config={{ enableFileUpload: false, enableCommandPalette: false }}
+      >
+        <ChatShell />
+      </ChatProvider>,
+    );
+
+    const shell = container.querySelector(".ais-chat-shell");
+    expect(shell).toHaveClass("is-keyboard-open");
+    expect(shell).toHaveStyle({ height: "420px", maxHeight: "420px" });
+
+    window.matchMedia = originalMatchMedia;
+    if (originalViewport) Object.defineProperty(window, "visualViewport", originalViewport);
+    else Reflect.deleteProperty(window, "visualViewport");
+    Object.defineProperty(window, "innerHeight", {
+      value: originalInnerHeight,
+      configurable: true,
+    });
+  });
 });

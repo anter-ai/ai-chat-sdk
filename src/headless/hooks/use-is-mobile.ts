@@ -13,11 +13,12 @@ export const MOBILE_BREAKPOINT_PX = 768;
 export function useIsMobile(breakpoint: number = MOBILE_BREAKPOINT_PX): boolean {
   const query = `(max-width: ${breakpoint - 1}px)`;
   const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window === "undefined") return false;
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
     return window.matchMedia(query).matches;
   });
 
   useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
     const mq = window.matchMedia(query);
     const update = () => setIsMobile(mq.matches);
     update();

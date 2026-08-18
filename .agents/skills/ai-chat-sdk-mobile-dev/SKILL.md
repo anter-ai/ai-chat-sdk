@@ -43,13 +43,14 @@ that already has one of these.
 
 ## Choose chrome
 
-| Surface                  | Mobile                                                       | Desktop          | Canonical                                       |
-| ------------------------ | ------------------------------------------------------------ | ---------------- | ----------------------------------------------- |
-| Search / command palette | Full-viewport **sheet** pinned to `visualViewport`           | Centered dialog  | `src/ui/command-palette/command-palette.tsx`    |
-| Chat sidebar             | `position: fixed` drawer, one inset owner per edge           | Persistent rail  | `src/ui/sidebar/chat-sidebar.tsx` + overlay CSS |
-| Host-docked Ask panel    | Overlay ≤1024, dock above — given                            | Split pane       | `src/ui/sidepanel/chat-sidepanel-layout.tsx`    |
-| Confirm / short dialog   | Centered card, `width: min(Npx, 100%)`, no `minWidth` > ~320 | Same             | `src/ui/shared/confirm-dialog.tsx`              |
-| Composer                 | Sticky above keyboard; 16px input                            | Desktop composer | `.ais-composer`                                 |
+| Surface                  | Mobile                                                                                                          | Desktop            | Canonical                                       |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------- | ------------------ | ----------------------------------------------- |
+| Search / command palette | Full-viewport **sheet** pinned to `visualViewport`                                                              | Centered dialog    | `src/ui/command-palette/command-palette.tsx`    |
+| Chats / Recents          | In-flow page; shell shrinks to VV when the search field focuses                                                 | In-flow page       | `src/ui/recents/recents-page.tsx`               |
+| Chat sidebar             | `position: fixed` drawer, one inset owner per edge                                                              | Persistent rail    | `src/ui/sidebar/chat-sidebar.tsx` + overlay CSS |
+| Host-docked Ask panel    | Overlay ≤1024, dock above — given                                                                               | Split pane         | `src/ui/sidepanel/chat-sidepanel-layout.tsx`    |
+| Confirm / short dialog   | Centered card, `width: min(Npx, 100%)`, no `minWidth` > ~320                                                    | Same               | `src/ui/shared/confirm-dialog.tsx`              |
+| Composer                 | Empty: centered with greeting. With messages: bottom, one safe-area. 16px input. Keyboard: shell shrinks to VV. | Same, no phone pad | `.ais-composer` + `ChatShell`                   |
 
 Never leave desktop chrome unchanged below 768.
 
@@ -81,10 +82,12 @@ Never leave desktop chrome unchanged below 768.
 
 1. **375×812** and **430×932**. Landscape once.
 2. Open Search: header + field stay on screen; results scroll above the keyboard; close dismisses.
-3. Open the sidebar drawer: brand sits just under the status bar; last chrome sits on the home-indicator pad.
-4. Desktop ≥768: centered palette / persistent sidebar unchanged.
-5. Light and dark (`data-theme` / host `.dark`).
-6. **Home indicator:** assert the wired `env()` string, not computed pixels. Headless Chromium resolves `env(safe-area-inset-*)` to `0`.
+3. Open Chats: search field stays on screen when the keyboard opens; title is not pushed by a second top inset.
+4. Composer: empty state stays centered with the greeting; with messages it sits on the home-indicator pad (not above a large empty band). Focus the composer: it stays above the keys.
+5. Open the sidebar drawer: brand sits just under the status bar; last chrome sits on the home-indicator pad.
+6. Desktop ≥768: centered palette / persistent sidebar unchanged.
+7. Light and dark (`data-theme` / host `.dark`).
+8. **Home indicator:** assert the wired `env()` string, not computed pixels. Headless Chromium resolves `env(safe-area-inset-*)` to `0`.
 
 No device: say so, and verify with Jest (style / class / hook contracts) plus `pnpm check-all`. Do not claim mobile is done from type-check alone.
 

@@ -44,6 +44,28 @@ uses the raw VV height when it is open.
 
 Do not wrap a mobile sheet in a dimmed overlay with 24px padding.
 
+## Chats / Recents (in-flow search)
+
+Recents is the main pane, not a portal. The shell header already owns the top
+inset — do not add `env(safe-area-inset-top)` on `.ais-recents-page`.
+
+On mobile: sticky header, `font-size: 16px` search, list `min-height: 0` +
+scroll. `ChatShell` adds `is-keyboard-open` and sets `height` to
+`visualViewport.height` so focusing the field does not drag a `100dvh` page
+off-screen.
+
+Canonical: `src/ui/recents/recents-page.tsx`.
+
+## Composer placement
+
+| State                  | Placement                                                                                                                     |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `.ais-messages--empty` | Greeting + composer centered as one group. Composer `padding-bottom: 10px` (no home-indicator pad — it would lift the group). |
+| Has messages           | Composer `margin-top: auto` at the bottom. One pad: `padding-bottom: max(10px, env(safe-area-inset-bottom))`.                 |
+| Keyboard open          | `.ais-chat-shell.is-keyboard-open .ais-composer { padding-bottom: 10px }` — VV already sits above the keys.                   |
+
+Do not also pad `.ais-chat-footer` or the host wrapper with `safe-area-inset-bottom`.
+
 ## Keyboard
 
 Safari's default `interactive-widget=resizes-visual` leaves the layout

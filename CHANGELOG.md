@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `safe-area-inset-bottom` on the container, which pushed the brand / back control
   down and floated the collapse toggle above a large empty band. The header now
   owns the top inset once; the drawer owns a single bottom inset.
+- **Mobile Search / command palette**: opening Search on a phone autofocused a
+  `100vh` dialog portaled inside the overflow-hidden shell. iOS then scrolled that
+  oversized panel off-screen, leaving recents under the status bar and the system
+  keyboard accessory with no search field. The palette is now a visualViewport-
+  pinned full-screen sheet, portaled to `document.documentElement`, with a 16px
+  input and no desktop shortcut footer.
 - **Reasoning block layout**: the expanded reasoning tree was laid out with Tailwind
   utilities that the SDK does not ship, so hosts that do not compile Tailwind over
   `node_modules` (the Tailwind v4 default) rendered skill/step rows with the UA button

@@ -7,4 +7,6 @@ export * from "./hooks/use-session-files";
 export * from "./hooks/use-sources";
 export * from "./hooks/use-sticky-bottom";
 export * from "./hooks/use-viewport-height";
+export * from "./hooks/use-visual-viewport";
+export * from "./hooks/use-is-mobile";
 export * from "./types";

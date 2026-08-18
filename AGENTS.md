@@ -41,6 +41,13 @@ This document provides instructions and quick reference context for AI coding as
 
 ---
 
+## Mobile UI
+
+Phone layouts are a first-class branch, not a squeezed desktop dialog. Follow
+[`.agents/skills/ai-chat-sdk-mobile-dev/SKILL.md`](.agents/skills/ai-chat-sdk-mobile-dev/SKILL.md)
+when changing `ChatShell`, `ChatSidebar`, `CommandPalette`, `ChatSidepanel`, the
+composer, or any overlay that can open on a phone.
+
 ## Verification Requirements
 
 Before reporting completion on any code or feature change:

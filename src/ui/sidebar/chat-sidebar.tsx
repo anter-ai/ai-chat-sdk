@@ -79,6 +79,7 @@ export function ChatSidebar({
   const { sessions, isLoading, refresh, deleteSession } = useConversationHistory();
   const { loadSession, currentSessionId, isStreaming, clearMessages, messages } = useChat();
   const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
     const persisted = window.localStorage.getItem("ais-chat-sidebar-collapsed");
     if (persisted === "1") return true;
     if (persisted === "0") return false;

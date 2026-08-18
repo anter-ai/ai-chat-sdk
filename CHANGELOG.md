@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Mobile overlay sidebar insets**: the phone drawer applied `env(safe-area-inset-top)`
+  on both `.ais-sidebar` and `.ais-sidebar-header`, and a padded
+  `safe-area-inset-bottom` on the container, which pushed the brand / back control
+  down and floated the collapse toggle above a large empty band. The header now
+  owns the top inset once; the drawer owns a single bottom inset.
 - **Reasoning block layout**: the expanded reasoning tree was laid out with Tailwind
   utilities that the SDK does not ship, so hosts that do not compile Tailwind over
   `node_modules` (the Tailwind v4 default) rendered skill/step rows with the UA button

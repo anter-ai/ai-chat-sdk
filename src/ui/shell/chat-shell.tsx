@@ -12,6 +12,8 @@ import {
 } from "../../headless/hooks/use-session-files";
 import { useChatContext } from "../../headless/context/chat-provider";
 import { useViewportHeightFallback } from "../../headless/hooks/use-viewport-height";
+import { useIsMobile } from "../../headless/hooks/use-is-mobile";
+import { isKeyboardOpen, useVisualViewport } from "../../headless/hooks/use-visual-viewport";
 import { registerCommand, unregisterCommand } from "../../extensions/command-registry";
 import { ArtifactPanel } from "../artifact-panel/artifact-panel";
 import { SourcesPanel } from "../sources-panel/sources-panel";
@@ -381,6 +383,9 @@ function ChatShellContent({
   // the visible area when browser chrome shows/hides.
   const shellRef = React.useRef<HTMLDivElement | null>(null);
   useViewportHeightFallback(shellRef);
+  const isMobile = useIsMobile();
+  const viewport = useVisualViewport();
+  const keyboardOpen = isMobile && isKeyboardOpen(viewport);
 
   const shellStyle: React.CSSProperties = {
     ...(viewportOffset?.top != null
@@ -390,10 +395,18 @@ function ChatShellContent({
       ? ({ "--ais-chrome-offset-bottom": `${viewportOffset.bottom}px` } as React.CSSProperties)
       : {}),
     ...style,
+    // iOS keyboard: `dvh` does not shrink. Recents search and the composer
+    // autofocus/focus then drag a full-height shell off-screen. Shrink to the
+    // visual viewport so the focused field stays in view.
+    ...(keyboardOpen && viewport ? { height: viewport.height, maxHeight: viewport.height } : {}),
   };
 
   return (
-    <div ref={shellRef} className={`ais-chat-shell ${className ?? ""}`} style={shellStyle}>
+    <div
+      ref={shellRef}
+      className={`ais-chat-shell ${className ?? ""} ${keyboardOpen ? "is-keyboard-open" : ""}`.trim()}
+      style={shellStyle}
+    >
       <ChatSidebar
         activeView={activeView}
         isOpen={isOverlayViewport ? sidebarOpen : false}

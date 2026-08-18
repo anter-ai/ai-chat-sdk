@@ -76,3 +76,25 @@ describe("mobile overlay sidebar safe-area insets", () => {
     expect(sidebar).not.toMatch(/padding-bottom\s*:\s*calc\(/);
   });
 });
+
+describe("recents + composer mobile insets", () => {
+  const phone = mediaBody(css, "(max-width: 768px)", ".ais-recents-page {");
+
+  it("does not add safe-area-inset-top on the Recents page (shell header owns it)", () => {
+    const page = ruleBody(phone, ".ais-recents-page");
+    expect(declaresSafeTop(page)).toBe(false);
+  });
+
+  it("uses a 16px Recents search field", () => {
+    const search = ruleBody(phone, ".ais-recents-search");
+    expect(search).toMatch(/font-size:\s*16px/);
+  });
+
+  it("gives the composer a single bottom inset with no corner-clearance stack", () => {
+    const composer = ruleBody(css, ".ais-composer");
+    expect(composer).toMatch(/padding-bottom:\s*max\(\s*10px,\s*env\(safe-area-inset-bottom/);
+    expect(composer).not.toMatch(/padding-bottom:[^;]*--ais-corner-clearance/);
+    const footer = ruleBody(css, ".ais-chat-footer");
+    expect(declaresSafeBottom(footer)).toBe(false);
+  });
+});

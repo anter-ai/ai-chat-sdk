@@ -6,6 +6,11 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "../primitives/resizable-handle";
+import {
+  useVisualViewport,
+  isKeyboardOpen,
+  overlayHeight,
+} from "../../headless/hooks/use-visual-viewport";
 
 export interface ChatSidepanelLayoutProps {
   /** Renders the main host application view on the left. */
@@ -188,15 +193,28 @@ export function ChatSidepanelLayout({
     maxWidth,
   );
 
+  const viewport = useVisualViewport();
+  const keyboardOpen = isOverlayViewport && isKeyboardOpen(viewport);
+
+  const overlayPaneStyle: React.CSSProperties | undefined =
+    isOverlayViewport && viewport
+      ? {
+          top: viewport.offsetTop,
+          height: overlayHeight(viewport),
+          maxHeight: overlayHeight(viewport),
+        }
+      : undefined;
+
   // Single DOM tree keeps React node path identical to avoid state teardown during viewport resize
   return (
     <div
       className={`ais-sidepanel-layout-root ${
         isOverlayViewport ? "ais-mobile" : "ais-desktop"
-      } ${isOpen ? "ais-panel-open" : ""} ${className}`}
+      } ${isOpen ? "ais-panel-open" : ""} ${keyboardOpen ? "is-keyboard-open" : ""} ${className}`}
       style={{ height: "100%", width: "100%", position: "relative" }}
     >
       <ResizablePanelGroup
+        key={`${storageKey}-${isOpen ? "open" : "closed"}`}
         orientation="horizontal"
         className="ais-sidepanel-layout-container"
         defaultLayout={savedLayout}
@@ -227,6 +245,7 @@ export function ChatSidepanelLayout({
             minSize={`${computedMinSize}%`}
             maxSize={`${maxWidth}%`}
             className="ais-sidepanel-chat-pane"
+            style={overlayPaneStyle}
             role={isOverlayViewport ? "dialog" : undefined}
             aria-modal={isOverlayViewport ? "true" : undefined}
             aria-label={isOverlayViewport ? ariaLabel : undefined}

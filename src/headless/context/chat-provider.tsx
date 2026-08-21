@@ -100,7 +100,7 @@ function generateThemeCss(themeOptions?: ChatThemeSpecification): string {
   return css;
 }
 
-interface ChatProviderProps {
+export interface ChatProviderProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
   adapter: ChatAdapter;
   organizationId?: string;
@@ -119,6 +119,9 @@ export function ChatProvider({
   strings = {},
   plugins = {},
   onSlashCommand,
+  className,
+  style,
+  ...rest
 }: ChatProviderProps) {
   const [currentSession, setCurrentSession] = useState<Session | undefined>(undefined);
   const [orgLabel, setOrgLabel] = useState<string | undefined>(undefined);
@@ -262,7 +265,13 @@ export function ChatProvider({
   }, [config.themeOptions]);
 
   return (
-    <div data-chat-provider="ai-chat-sdk" data-theme={mergedConfig.theme}>
+    <div
+      data-chat-provider="ai-chat-sdk"
+      data-theme={mergedConfig.theme}
+      className={className}
+      style={style}
+      {...rest}
+    >
       {themeCss && <style dangerouslySetInnerHTML={{ __html: themeCss }} />}
       <ChatContext.Provider value={value}>{children}</ChatContext.Provider>
     </div>

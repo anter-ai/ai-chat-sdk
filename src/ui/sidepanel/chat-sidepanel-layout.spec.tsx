@@ -109,4 +109,48 @@ describe("ChatSidepanelLayout", () => {
     const root = container.querySelector(".ais-sidepanel-layout-root");
     expect(root).toHaveClass("ais-mobile", "is-keyboard-open");
   });
+
+  it("preserves children DOM and state without remounting on open/close", () => {
+    Object.defineProperty(window, "innerWidth", {
+      value: 1200,
+      configurable: true,
+    });
+
+    const unmountSpy = jest.fn();
+    function HostComponent() {
+      React.useEffect(() => {
+        return () => unmountSpy();
+      }, []);
+      return <div data-testid="host-child">Host App Content</div>;
+    }
+
+    const { rerender } = render(
+      <ChatSidepanelLayout isOpen={true} onClose={jest.fn()} sidepanel={<div>Sidepanel</div>}>
+        <HostComponent />
+      </ChatSidepanelLayout>,
+    );
+
+    expect(screen.getByTestId("host-child")).toBeInTheDocument();
+    expect(unmountSpy).not.toHaveBeenCalled();
+
+    // Close panel
+    rerender(
+      <ChatSidepanelLayout isOpen={false} onClose={jest.fn()} sidepanel={<div>Sidepanel</div>}>
+        <HostComponent />
+      </ChatSidepanelLayout>,
+    );
+
+    expect(screen.getByTestId("host-child")).toBeInTheDocument();
+    expect(unmountSpy).not.toHaveBeenCalled();
+
+    // Reopen panel
+    rerender(
+      <ChatSidepanelLayout isOpen={true} onClose={jest.fn()} sidepanel={<div>Sidepanel</div>}>
+        <HostComponent />
+      </ChatSidepanelLayout>,
+    );
+
+    expect(screen.getByTestId("host-child")).toBeInTheDocument();
+    expect(unmountSpy).not.toHaveBeenCalled();
+  });
 });

@@ -89,6 +89,18 @@ describe("overlayHeight / isKeyboardOpen", () => {
     expect(isKeyboardOpen({ height: 800, offsetTop: 0 })).toBe(false);
   });
 
+  // Regression: iOS pans the visual viewport down to bring a focused field into
+  // view, so offsetTop grows by about as much as height shrank. Folding
+  // offsetTop into the occlusion made the two cancel, and detection failed at
+  // exactly the moment the keyboard was fully open — the overlay never got
+  // pinned and its header was left above the visible area.
+  it("detects the keyboard even when iOS has panned the visual viewport", () => {
+    Object.defineProperty(window, "innerHeight", { value: 800, configurable: true });
+    focusEditable();
+    expect(isKeyboardOpen({ height: 420, offsetTop: 300 })).toBe(true);
+    expect(isKeyboardOpen({ height: 420, offsetTop: 0 })).toBe(true);
+  });
+
   it("ignores browser-chrome-sized shrinkage even with a field focused", () => {
     Object.defineProperty(window, "innerHeight", { value: 800, configurable: true });
     focusEditable();

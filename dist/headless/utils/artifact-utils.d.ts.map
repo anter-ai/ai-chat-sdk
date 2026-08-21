@@ -1,0 +1,1 @@
+{"version":3,"file":"artifact-utils.d.ts","sourceRoot":"","sources":["../../../src/headless/utils/artifact-utils.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,QAAQ,EAAE,MAAM,mBAAmB,CAAC;AASlD;;GAEG;AACH,wBAAgB,2BAA2B,CACzC,OAAO,EAAE,MAAM,EACf,QAAQ,CAAC,EAAE,MAAM,GAChB;IACD,cAAc,EAAE,MAAM,CAAC;IACvB,SAAS,EAAE,QAAQ,EAAE,CAAC;CACvB,CAuBA"}

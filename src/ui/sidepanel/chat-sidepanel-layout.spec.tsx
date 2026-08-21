@@ -76,18 +76,12 @@ describe("ChatSidepanelLayout", () => {
     expect(container.querySelector(".ais-mobile-sidebar-backdrop")).toBeInTheDocument();
   });
 
-  it("pins to visual viewport when mobile soft keyboard is open", () => {
-    Object.defineProperty(window, "innerWidth", {
-      value: 390,
-      configurable: true,
-    });
-    Object.defineProperty(window, "innerHeight", {
-      value: 844,
-      configurable: true,
-    });
+  const mockMobileViewport = (visualViewportHeight: number) => {
+    Object.defineProperty(window, "innerWidth", { value: 390, configurable: true });
+    Object.defineProperty(window, "innerHeight", { value: 844, configurable: true });
     Object.defineProperty(window, "visualViewport", {
       value: {
-        height: 450,
+        height: visualViewportHeight,
         offsetTop: 0,
         addEventListener: jest.fn(),
         removeEventListener: jest.fn(),
@@ -95,12 +89,16 @@ describe("ChatSidepanelLayout", () => {
       configurable: true,
       writable: true,
     });
+  };
+
+  it("pins to visual viewport when mobile soft keyboard is open", () => {
+    mockMobileViewport(450);
 
     const { container } = render(
       <ChatSidepanelLayout
         isOpen={true}
         onClose={jest.fn()}
-        sidepanel={<div data-testid="sidepanel-content">Sidepanel</div>}
+        sidepanel={<input data-testid="composer" autoFocus />}
       >
         <div>Main content</div>
       </ChatSidepanelLayout>,
@@ -108,6 +106,47 @@ describe("ChatSidepanelLayout", () => {
 
     const root = container.querySelector(".ais-sidepanel-layout-root");
     expect(root).toHaveClass("ais-mobile", "is-keyboard-open");
+  });
+
+  // Regression: `visualViewport` is ~100-150px shorter than `window.innerHeight`
+  // on iOS Safari whenever the toolbars are showing, with no keyboard present.
+  // Reading that as "keyboard open" pinned inline top/height onto the fixed
+  // drawer, and the pin flipped on and off as the toolbars collapsed and
+  // expanded during a scroll — the drawer visibly snapped open and shut.
+  it("does not pin for browser chrome, even with the composer focused", () => {
+    mockMobileViewport(720);
+
+    const { container } = render(
+      <ChatSidepanelLayout
+        isOpen={true}
+        onClose={jest.fn()}
+        sidepanel={<input data-testid="composer" autoFocus />}
+      >
+        <div>Main content</div>
+      </ChatSidepanelLayout>,
+    );
+
+    const root = container.querySelector(".ais-sidepanel-layout-root");
+    expect(root).toHaveClass("ais-mobile");
+    expect(root).not.toHaveClass("is-keyboard-open");
+    expect(container.querySelector<HTMLElement>(".ais-sidepanel-chat-pane")?.style.top).toBe("");
+  });
+
+  it("does not subscribe to the visual viewport while the panel is closed", () => {
+    mockMobileViewport(450);
+    const vv = window.visualViewport as unknown as { addEventListener: jest.Mock };
+
+    render(
+      <ChatSidepanelLayout
+        isOpen={false}
+        onClose={jest.fn()}
+        sidepanel={<input data-testid="composer" />}
+      >
+        <div>Main content</div>
+      </ChatSidepanelLayout>,
+    );
+
+    expect(vv.addEventListener).not.toHaveBeenCalled();
   });
 
   it("preserves children DOM and state without remounting on open/close", () => {

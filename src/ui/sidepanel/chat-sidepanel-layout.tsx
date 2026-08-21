@@ -6,7 +6,7 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "../primitives/resizable-handle";
-import { useVisualViewport, isKeyboardOpen } from "../../headless/hooks/use-visual-viewport";
+import { useVisualViewport, useKeyboardOpen } from "../../headless/hooks/use-visual-viewport";
 
 export interface ChatSidepanelLayoutProps {
   /** Renders the main host application view on the left. */
@@ -151,11 +151,22 @@ export function ChatSidepanelLayout({
     maxWidth,
   );
 
-  const viewport = useVisualViewport();
-  const keyboardOpen = isOverlayViewport && isKeyboardOpen(viewport);
+  // Only track the visual viewport while the overlay drawer is actually on
+  // screen. This component wraps the entire host application, and
+  // visualViewport `scroll` fires every frame of an iOS momentum scroll, so an
+  // unconditional subscription re-renders this whole subtree throughout every
+  // scroll on every page — including desktop, where nothing reads the result.
+  const overlayDrawerVisible = isOpen && isOverlayViewport;
+  const viewport = useVisualViewport(overlayDrawerVisible);
+  const keyboardOpen = useKeyboardOpen(overlayDrawerVisible);
 
+  // Pin to the visual viewport ONLY while the keyboard is genuinely up. With
+  // the keyboard down the drawer is a plain `position: fixed` element whose
+  // containing block is the viewport, so CSS already sizes it correctly, and
+  // writing inline `top`/`height` here would just make it track browser-chrome
+  // movement for no reason.
   const overlayPaneStyle: React.CSSProperties | undefined =
-    isOverlayViewport && keyboardOpen && viewport
+    keyboardOpen && viewport
       ? {
           top: viewport.offsetTop,
           height: viewport.height,

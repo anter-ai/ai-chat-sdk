@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { ChatProvider } from "../../headless/context/chat-provider";
 import { ChatShell } from "./chat-shell";
@@ -150,6 +150,14 @@ describe("ChatShell banner slots", () => {
     );
 
     const shell = container.querySelector(".ais-chat-shell");
+    // A shorter visual viewport alone is browser chrome, not a keyboard — the
+    // shell only shrinks once a text field actually has focus.
+    expect(shell).not.toHaveClass("is-keyboard-open");
+
+    act(() => {
+      container.querySelector<HTMLTextAreaElement>("textarea")?.focus();
+    });
+
     expect(shell).toHaveClass("is-keyboard-open");
     expect(shell).toHaveStyle({ height: "420px", maxHeight: "420px" });
 

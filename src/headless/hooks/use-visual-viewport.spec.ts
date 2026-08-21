@@ -52,18 +52,48 @@ describe("useVisualViewport", () => {
 
 describe("overlayHeight / isKeyboardOpen", () => {
   const originalInnerHeight = window.innerHeight;
+  let input: HTMLInputElement | undefined;
+
+  const focusEditable = () => {
+    input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+  };
 
   afterEach(() => {
+    input?.remove();
+    input = undefined;
     Object.defineProperty(window, "innerHeight", {
       value: originalInnerHeight,
       configurable: true,
     });
   });
 
-  it("treats a much-shorter visual viewport as the keyboard", () => {
+  it("treats a much-shorter visual viewport as the keyboard while a field is focused", () => {
     Object.defineProperty(window, "innerHeight", { value: 800, configurable: true });
+    focusEditable();
     expect(isKeyboardOpen({ height: 420, offsetTop: 0 })).toBe(true);
     expect(isKeyboardOpen({ height: 800, offsetTop: 0 })).toBe(false);
+  });
+
+  // Regression: on iOS Safari `window.innerHeight` is the *large* viewport, so
+  // with the toolbars shown visualViewport is already ~100-150px shorter with
+  // no keyboard. A height-only test read that as "keyboard open" and flipped
+  // as the toolbars collapsed/expanded on scroll, snapping the pinned drawer
+  // open and shut.
+  it("never reports the keyboard when nothing editable is focused", () => {
+    Object.defineProperty(window, "innerHeight", { value: 800, configurable: true });
+    document.body.focus();
+    expect(isKeyboardOpen({ height: 420, offsetTop: 0 })).toBe(false);
+    expect(isKeyboardOpen({ height: 660, offsetTop: 0 })).toBe(false);
+    expect(isKeyboardOpen({ height: 800, offsetTop: 0 })).toBe(false);
+  });
+
+  it("ignores browser-chrome-sized shrinkage even with a field focused", () => {
+    Object.defineProperty(window, "innerHeight", { value: 800, configurable: true });
+    focusEditable();
+    // 140px occluded is toolbars, not a keyboard: under max(150, 25% of 800).
+    expect(isKeyboardOpen({ height: 660, offsetTop: 0 })).toBe(false);
   });
 
   it("extends by the home-indicator inset only when the keyboard is closed", () => {
@@ -72,6 +102,23 @@ describe("overlayHeight / isKeyboardOpen", () => {
     expect(overlayHeight({ height: 800, offsetTop: 0 })).toBe(
       "calc(800px + env(safe-area-inset-bottom, 0px))",
     );
+    focusEditable();
     expect(overlayHeight({ height: 420, offsetTop: 0 })).toBe(420);
+  });
+});
+
+describe("useVisualViewport enabled flag", () => {
+  const original = Object.getOwnPropertyDescriptor(window, "visualViewport");
+
+  afterEach(() => {
+    if (original) Object.defineProperty(window, "visualViewport", original);
+    else Reflect.deleteProperty(window, "visualViewport");
+  });
+
+  it("does not subscribe when disabled", () => {
+    const viewport = stubVisualViewport(800, 0);
+    const { result } = renderHook(() => useVisualViewport(false));
+    expect(result.current).toBeNull();
+    expect(viewport.addEventListener).not.toHaveBeenCalled();
   });
 });

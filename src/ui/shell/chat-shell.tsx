@@ -13,7 +13,7 @@ import {
 import { useChatContext } from "../../headless/context/chat-provider";
 import { useViewportHeightFallback } from "../../headless/hooks/use-viewport-height";
 import { useIsMobile } from "../../headless/hooks/use-is-mobile";
-import { isKeyboardOpen, useVisualViewport } from "../../headless/hooks/use-visual-viewport";
+import { useKeyboardOpen, useVisualViewport } from "../../headless/hooks/use-visual-viewport";
 import { registerCommand, unregisterCommand } from "../../extensions/command-registry";
 import { ArtifactPanel } from "../artifact-panel/artifact-panel";
 import { SourcesPanel } from "../sources-panel/sources-panel";
@@ -384,8 +384,8 @@ function ChatShellContent({
   const shellRef = React.useRef<HTMLDivElement | null>(null);
   useViewportHeightFallback(shellRef);
   const isMobile = useIsMobile();
-  const viewport = useVisualViewport();
-  const keyboardOpen = isMobile && isKeyboardOpen(viewport);
+  const viewport = useVisualViewport(isMobile);
+  const keyboardOpen = useKeyboardOpen(isMobile);
 
   const shellStyle: React.CSSProperties = {
     ...(viewportOffset?.top != null

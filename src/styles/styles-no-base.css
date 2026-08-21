@@ -197,12 +197,28 @@
    shell/layout. When it directly hosts a full ChatShell or ChatSidepanelLayout,
    stretch it to the parent so inner elements with `height: 100%` have a bounded
    ancestor to resolve against and flex to fill the available layout row.
-   Scoped with :has so widget/inline embeddings keep an auto-height wrapper. */
-[data-chat-provider="ai-chat-sdk"]:has(> .ais-chat-shell) {
+   Scoped with :has so widget/inline embeddings keep an auto-height wrapper.
+
+   SPECIFICITY CONTRACT — this element belongs to the host, not to us.
+   ChatProvider renders it, but it is the host's layout that decides how it
+   should be sized: it is the flex/grid child of *their* app shell, and only
+   they know whether that shell has a definite height. So every rule we ship
+   for it is wrapped in :where(), which zeroes its specificity and guarantees a
+   plain host rule can always override it.
+
+   Without :where(), `[data-chat-provider]:has(> .ais-sidepanel-layout-root)`
+   computes to (0,2,0) — :has() contributes its most specific argument — which
+   silently beats the documented host override `[data-chat-provider] { ... }`
+   at (0,1,0). That regressed real integrations: a host that had pinned this
+   div to `height: 100vh` (needed because their shell root is `min-height`, and
+   a percentage height cannot resolve against a min-height ancestor) had it
+   replaced by our `height: 100%`, which resolved to `auto` and collapsed the
+   whole height chain below it. These are defaults, so they must lose. */
+:where([data-chat-provider="ai-chat-sdk"]:has(> .ais-chat-shell)) {
   height: 100%;
 }
 
-[data-chat-provider="ai-chat-sdk"]:has(> .ais-sidepanel-layout-root) {
+:where([data-chat-provider="ai-chat-sdk"]:has(> .ais-sidepanel-layout-root)) {
   flex: 1 1 0%;
   min-width: 0;
   min-height: 0;

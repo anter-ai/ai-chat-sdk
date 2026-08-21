@@ -9,7 +9,7 @@ import { useChat } from "../../headless/hooks/use-chat";
 import { useChatContext } from "../../headless/context/chat-provider";
 import { useIsMobile } from "../../headless/hooks/use-is-mobile";
 import {
-  isKeyboardOpen,
+  useKeyboardOpen,
   overlayHeight,
   useVisualViewport,
 } from "../../headless/hooks/use-visual-viewport";
@@ -23,8 +23,8 @@ export function CommandPalette() {
   const { adapter, config } = useChatContext();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const isMobile = useIsMobile();
-  const viewport = useVisualViewport();
-  const keyboardOpen = isMobile && isKeyboardOpen(viewport);
+  const viewport = useVisualViewport(isMobile);
+  const keyboardOpen = useKeyboardOpen(isMobile);
 
   useEffect(() => {
     if (!config?.enableCommandPalette) return;

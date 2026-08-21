@@ -125,7 +125,17 @@ export function isEditableFocused(): boolean {
 export function isKeyboardOpen(rect: VisualViewportRect | null): boolean {
   if (!rect || typeof window === "undefined") return false;
   if (!isEditableFocused()) return false;
-  const occluded = window.innerHeight - (rect.height + rect.offsetTop);
+  // Occlusion is how much SHORTER the visual viewport is, i.e.
+  // `innerHeight - height`. `offsetTop` says where the visual viewport sits,
+  // not how much of it the keyboard covers, and including it here is a bug:
+  // when iOS scrolls a focused field into view it pans the visual viewport
+  // down, so `offsetTop` grows by roughly the amount `height` shrank and the
+  // two cancel. The measured occlusion then collapses toward zero exactly when
+  // the keyboard is most open and the pan is largest — detection fails, the
+  // overlay never gets pinned, and the panned-away header ends up above the
+  // visible area. `offsetTop` belongs in the pin (`top: offsetTop`), which is
+  // where it is already used, and nowhere else.
+  const occluded = window.innerHeight - rect.height;
   return occluded > Math.max(150, window.innerHeight * 0.25);
 }
 

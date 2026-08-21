@@ -6,11 +6,7 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "../primitives/resizable-handle";
-import {
-  useVisualViewport,
-  isKeyboardOpen,
-  overlayHeight,
-} from "../../headless/hooks/use-visual-viewport";
+import { useVisualViewport, isKeyboardOpen } from "../../headless/hooks/use-visual-viewport";
 
 export interface ChatSidepanelLayoutProps {
   /** Renders the main host application view on the left. */
@@ -63,63 +59,42 @@ export function ChatSidepanelLayout({
   className = "",
   ariaLabel = "AI Assistant Panel",
 }: ChatSidepanelLayoutProps) {
-  // Lazily detect mobile viewport and track width for dynamic minSize
   const [isOverlayViewport, setIsOverlayViewport] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.innerWidth <= SIDEBAR_OVERLAY_BREAKPOINT_PX;
-  });
-  const [viewportWidth, setViewportWidth] = useState(() => {
-    if (typeof window === "undefined") return 1200;
-    return window.innerWidth;
   });
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const onResize = () => {
-      setIsOverlayViewport(window.innerWidth <= SIDEBAR_OVERLAY_BREAKPOINT_PX);
-      setViewportWidth(window.innerWidth);
+      const next = window.innerWidth <= SIDEBAR_OVERLAY_BREAKPOINT_PX;
+      setIsOverlayViewport((prev) => (prev === next ? prev : next));
     };
-    onResize();
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // Manual persistence of layout state with crash safety
-  const [savedLayout, setSavedLayout] = useState<Record<string, number> | undefined>(() =>
-    getSafeLayout(storageKey),
-  );
+  const savedLayoutRef = useRef<Record<string, number> | undefined>(getSafeLayout(storageKey));
+
+  useEffect(() => {
+    savedLayoutRef.current = getSafeLayout(storageKey);
+  }, [storageKey]);
 
   const handleLayoutChanged = useCallback(
     (layout: Record<string, number>) => {
-      // Only persist real desktop drag layouts. In overlay/mobile mode the
-      // sidepanel pane is lifted out of flow via CSS, so the layout the lib
-      // reports is degenerate and must not pollute the saved desktop split.
       if (!isOpen || isOverlayViewport || typeof window === "undefined") return;
-
-      const layoutKeys = Object.keys(layout);
-      const isSame =
-        savedLayout &&
-        layoutKeys.length === Object.keys(savedLayout).length &&
-        layoutKeys.every((k) => Math.abs((layout[k] ?? 0) - (savedLayout[k] ?? 0)) < 0.01);
-      if (isSame) return;
-
-      setSavedLayout(layout);
+      savedLayoutRef.current = layout;
       try {
         window.localStorage.setItem(storageKey, JSON.stringify(layout));
       } catch (e) {
         // Ignore storage write errors
       }
     },
-    [isOpen, isOverlayViewport, savedLayout, storageKey],
+    [isOpen, isOverlayViewport, storageKey],
   );
-
-  useEffect(() => {
-    setSavedLayout(getSafeLayout(storageKey));
-  }, [storageKey]);
 
   // Focus trap / Keyboard accessibility management
   const sidepanelRef = useRef<HTMLDivElement | null>(null);
-  const prevOpenRef = useRef(false);
 
   const FOCUSABLE_SELECTOR =
     'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -158,13 +133,8 @@ export function ChatSidepanelLayout({
     }
   };
 
-  // Autofocus only on a genuine open transition (false -> true) while in overlay
-  // mode. Keying off the transition (not just current state) prevents focus from
-  // being yanked into the panel when the user merely resizes across the breakpoint.
   useEffect(() => {
-    const justOpened = isOpen && !prevOpenRef.current;
-    prevOpenRef.current = isOpen;
-    if (!justOpened || !isOverlayViewport) return;
+    if (!isOpen || !isOverlayViewport) return;
     const node = sidepanelRef.current;
     if (!node) return;
     const firstFocusable = node.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)[0];
@@ -175,21 +145,9 @@ export function ChatSidepanelLayout({
     }
   }, [isOpen, isOverlayViewport]);
 
-  // Sanitize the persisted size against the constraints so a degenerate stored
-  // value cannot seed a broken initial split. The vendored react-resizable-panels
-  // interprets *bare numbers* as pixels (see ge()/zt() in the lib: a numeric
-  // styleProp resolves to "px"), so all sizes MUST be passed as "%" strings to be
-  // treated as percentages — otherwise e.g. defaultSize 30 means 30px (~2-5% of a
-  // wide viewport), which collapses the panel to a sliver and makes minSize="20px"
-  // unable to clamp it back up.
-  const computedMinSize =
-    viewportWidth > 0
-      ? Math.min(maxWidth, Math.max(minWidth, (320 / viewportWidth) * 100))
-      : minWidth;
-
   const sidepanelSize = clampSize(
-    savedLayout?.["sidepanel"] ?? defaultWidth,
-    computedMinSize,
+    savedLayoutRef.current?.["sidepanel"] ?? defaultWidth,
+    minWidth,
     maxWidth,
   );
 
@@ -197,11 +155,11 @@ export function ChatSidepanelLayout({
   const keyboardOpen = isOverlayViewport && isKeyboardOpen(viewport);
 
   const overlayPaneStyle: React.CSSProperties | undefined =
-    isOverlayViewport && viewport
+    isOverlayViewport && keyboardOpen && viewport
       ? {
           top: viewport.offsetTop,
-          height: overlayHeight(viewport),
-          maxHeight: overlayHeight(viewport),
+          height: viewport.height,
+          maxHeight: viewport.height,
         }
       : undefined;
 
@@ -214,10 +172,9 @@ export function ChatSidepanelLayout({
       style={{ height: "100%", width: "100%", position: "relative" }}
     >
       <ResizablePanelGroup
-        key={`${storageKey}-${isOpen ? "open" : "closed"}`}
         orientation="horizontal"
         className="ais-sidepanel-layout-container"
-        defaultLayout={savedLayout}
+        defaultLayout={savedLayoutRef.current}
         onLayoutChanged={handleLayoutChanged}
       >
         {/* Host pane has no defaultSize so it absorbs the remaining width: it
@@ -242,7 +199,7 @@ export function ChatSidepanelLayout({
             id="sidepanel"
             key="sidepanel"
             defaultSize={`${sidepanelSize}%`}
-            minSize={`${computedMinSize}%`}
+            minSize={`${minWidth}%`}
             maxSize={`${maxWidth}%`}
             className="ais-sidepanel-chat-pane"
             style={overlayPaneStyle}

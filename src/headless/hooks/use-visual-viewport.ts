@@ -28,7 +28,18 @@ export function useVisualViewport(): VisualViewportRect | null {
   useEffect(() => {
     const vv = typeof window === "undefined" ? undefined : window.visualViewport;
     if (!vv) return;
-    const update = () => setRect({ height: vv.height, offsetTop: vv.offsetTop });
+    const update = () => {
+      setRect((prev) => {
+        if (
+          prev &&
+          Math.abs(prev.height - vv.height) < 1 &&
+          Math.abs(prev.offsetTop - vv.offsetTop) < 1
+        ) {
+          return prev;
+        }
+        return { height: vv.height, offsetTop: vv.offsetTop };
+      });
+    };
     update();
     vv.addEventListener("resize", update);
     vv.addEventListener("scroll", update);

@@ -16,6 +16,9 @@ export interface ChatTheme {
   radiusLg?: string;
   sidebarWidth?: string;
   artifactWidth?: string;
+  floatingPanelBg?: string;
+  floatingPanelBorder?: string;
+  floatingPanelCardBg?: string;
 }
 
 export interface ChatThemeSpecification {

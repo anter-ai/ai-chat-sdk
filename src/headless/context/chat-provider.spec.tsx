@@ -63,6 +63,36 @@ describe("ChatProvider", () => {
     expect(screen.getByTestId("consumer")).toHaveTextContent("custom-model");
   });
 
+  it("injects custom theme CSS when themeOptions are provided", () => {
+    const { container } = render(
+      <ChatProvider
+        adapter={mockAdapter}
+        config={{
+          themeOptions: {
+            light: {
+              accent: "#123456",
+              floatingPanelBg: "#fafafa",
+            },
+            dark: {
+              accent: "#abcdef",
+              floatingPanelBg: "#111111",
+            },
+          },
+        }}
+      >
+        <div>child content</div>
+      </ChatProvider>,
+    );
+
+    const styleTag = container.querySelector("style");
+    expect(styleTag).toBeInTheDocument();
+    expect(styleTag?.textContent).toContain("--chat-accent: #123456;");
+    expect(styleTag?.textContent).toContain("--ais-floating-panel-bg: #fafafa;");
+    expect(styleTag?.textContent).toContain("--chat-accent: #abcdef;");
+    expect(styleTag?.textContent).toContain("--ais-floating-panel-bg: #111111;");
+    expect(styleTag?.textContent).toContain("@media (prefers-color-scheme: dark)");
+  });
+
   it("throws error when useChatContext is called outside ChatProvider", () => {
     const spy = jest.spyOn(console, "error").mockImplementation(() => {});
 

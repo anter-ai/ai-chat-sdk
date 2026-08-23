@@ -64,6 +64,9 @@ const THEME_MAP: Record<keyof ChatTheme, string> = {
   radiusLg: "--chat-radius-lg",
   sidebarWidth: "--chat-sidebar-width",
   artifactWidth: "--chat-artifact-width",
+  floatingPanelBg: "--ais-floating-panel-bg",
+  floatingPanelBorder: "--ais-floating-panel-border",
+  floatingPanelCardBg: "--ais-floating-panel-card-bg",
 };
 
 function generateThemeCss(themeOptions?: ChatThemeSpecification): string {
@@ -95,6 +98,15 @@ function generateThemeCss(themeOptions?: ChatThemeSpecification): string {
       }
     }
     css += `}\n`;
+
+    css += `\n@media (prefers-color-scheme: dark) {\n  [data-chat-provider="ai-chat-sdk"]:not([data-theme="light"]) {\n`;
+    for (const [key, value] of Object.entries(themeOptions.dark)) {
+      const cssVar = THEME_MAP[key as keyof ChatTheme];
+      if (cssVar && value) {
+        css += `    ${cssVar}: ${value};\n`;
+      }
+    }
+    css += `  }\n}\n`;
   }
 
   return css;

@@ -1,0 +1,1 @@
+{"version":3,"file":"record-utils.d.ts","sourceRoot":"","sources":["../../../src/headless/utils/record-utils.ts"],"names":[],"mappings":"AAIA,MAAM,WAAW,SAAS;IACxB,OAAO,EAAE,MAAM,CAAC;IAChB,SAAS,EAAE,MAAM,CAAC;IAClB,GAAG,EAAE,MAAM,EAAE,CAAC;CACf;AAED,wBAAgB,4BAA4B,CAAC,OAAO,EAAE,MAAM,GAAG;IAC7D,cAAc,EAAE,MAAM,CAAC;IACvB,OAAO,EAAE,SAAS,EAAE,CAAC;CACtB,CAmBA"}

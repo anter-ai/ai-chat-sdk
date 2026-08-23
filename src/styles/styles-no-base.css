@@ -1800,16 +1800,16 @@
     background 0.16s,
     box-shadow 0.16s,
     transform 0.14s;
-  box-shadow: 0 1px 4px color-mix(in oklab, #3b82f6 8%, transparent);
+  box-shadow: 0 1px 4px color-mix(in oklab, var(--chat-accent) 8%, transparent);
   animation: ais-chip-card-in 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .ais-record-chip:hover {
-  border-color: #3b82f6;
-  background: color-mix(in oklab, var(--chat-bg) 95%, #3b82f6);
+  border-color: var(--chat-accent);
+  background: color-mix(in oklab, var(--chat-bg) 95%, var(--chat-accent));
   box-shadow:
-    0 0 0 3px color-mix(in oklab, #3b82f6 8%, transparent),
-    0 4px 12px color-mix(in oklab, #3b82f6 12%, transparent);
+    0 0 0 3px color-mix(in oklab, var(--chat-accent) 8%, transparent),
+    0 4px 12px color-mix(in oklab, var(--chat-accent) 12%, transparent);
   transform: translateY(-1px);
 }
 
@@ -1824,8 +1824,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in oklab, #3b82f6 12%, var(--chat-bg));
-  color: #3b82f6;
+  background: color-mix(in oklab, var(--chat-accent) 12%, var(--chat-bg));
+  color: var(--chat-accent);
   flex-shrink: 0;
   transition:
     background 0.16s,
@@ -1859,7 +1859,7 @@
 }
 
 .ais-record-chip:hover .ais-record-chip-hint {
-  color: #3b82f6;
+  color: var(--chat-accent);
 }
 
 .ais-record-chip-action {
@@ -1871,7 +1871,7 @@
 }
 
 .ais-record-chip:hover .ais-record-chip-action {
-  color: #3b82f6;
+  color: var(--chat-accent);
   transform: translateX(1px) translateY(-1px);
 }
 
@@ -2067,7 +2067,7 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--ap-type-color, #93c5fd);
+  color: var(--ap-type-color, var(--ais-ap-accent));
   background: color-mix(in oklab, var(--ais-ap-accent) 8%, var(--ais-ap-surface));
   border: 1px solid color-mix(in oklab, var(--ap-type-color, var(--ais-ap-accent)) 24%, transparent);
   padding: 2px 7px;
@@ -5874,7 +5874,7 @@
   min-height: calc(58px + env(safe-area-inset-top, 0px));
   background: var(--chat-bg);
   flex-shrink: 0;
-  z-index: 100;
+  z-index: 10;
   box-sizing: border-box;
 }
 
@@ -6169,6 +6169,7 @@
   height: 100%;
   width: 100%;
   position: relative;
+  isolation: isolate;
 }
 
 /* Mobile & Overlay Mode styling.
@@ -6238,7 +6239,7 @@
   border: 1px solid var(--chat-border);
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-  z-index: 100;
+  z-index: 20;
   display: flex;
   flex-direction: column;
   overflow: hidden;

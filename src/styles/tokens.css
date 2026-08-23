@@ -1,17 +1,17 @@
 [data-chat-provider] {
   /* Base dynamic tokens with fallbacks to common host variables */
   --chat-bg: var(--background, #ffffff);
-  --chat-sidebar-bg: var(--muted, #f3f7fc);
-  --artifact-bg: var(--card, #edf4ff);
-  --chat-border: var(--border, #d6e2f2);
-  --chat-accent: #0066ff;
-  --chat-accent-hover: #0057d9;
+  --chat-sidebar-bg: var(--muted, #f8f9fa);
+  --artifact-bg: var(--card, #f4f5f7);
+  --chat-border: var(--border, #e4e4e7);
+  --chat-accent: #000000;
+  --chat-accent-hover: #262626;
   --chat-accent-foreground: #ffffff;
-  --message-user-bg: var(--secondary, #f3f3f3);
-  --message-user-text: var(--foreground, #0e223d);
+  --message-user-bg: var(--secondary, #f4f4f5);
+  --message-user-text: var(--foreground, #000000);
   --message-ai-bg: transparent;
-  --message-ai-text: var(--foreground, #0e223d);
-  --chat-muted: #64748b;
+  --message-ai-text: var(--foreground, #000000);
+  --chat-muted: #71717a;
 
   --chat-radius-sm: 6px;
   --chat-radius-md: 10px;
@@ -43,26 +43,49 @@
 /* Dark mode overrides:
    1. If data-theme is explicitly 'dark'
    2. If host has .dark class and SDK is in 'system' (default) or 'dark' theme
+   3. If OS prefers dark and SDK is in 'system' (default)
 */
 [data-chat-provider][data-theme="dark"],
 :where(.dark) [data-chat-provider]:not([data-theme="light"]) {
   /* Dark defaults if host variables are missing */
-  --chat-bg: var(--background, #0d1117);
-  --chat-sidebar-bg: var(--muted, #161b22);
-  --artifact-bg: var(--card, #0d1117);
-  --chat-border: var(--border, #30363d);
-  --message-user-bg: var(--secondary, #21262d);
-  --message-user-text: var(--foreground, #c9d1d9);
-  --message-ai-text: var(--foreground, #c9d1d9);
-  --chat-muted: #8b949e;
+  --chat-bg: var(--background, #000000);
+  --chat-sidebar-bg: var(--muted, #0f0f0f);
+  --artifact-bg: var(--card, #0f0f0f);
+  --chat-border: var(--border, #27272a);
+  --message-user-bg: var(--secondary, #18181b);
+  --message-user-text: var(--foreground, #ffffff);
+  --message-ai-text: var(--foreground, #ffffff);
+  --chat-muted: #a1a1aa;
 
-  /* Adjusted accent for dark mode */
-  --chat-accent: #2f81f7;
-  --chat-accent-hover: #58a6ff;
+  /* Monochrome accent for dark mode */
+  --chat-accent: #ffffff;
+  --chat-accent-hover: #e5e5e5;
+  --chat-accent-foreground: #000000;
 
-  --ais-floating-panel-bg: #131314;
+  --ais-floating-panel-bg: #121214;
   --ais-floating-panel-border: color-mix(in oklab, var(--chat-border) 80%, transparent);
   --ais-floating-panel-card-bg: color-mix(in oklab, var(--chat-bg) 94%, white 6%);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-chat-provider]:not([data-theme="light"]) {
+    --chat-bg: var(--background, #000000);
+    --chat-sidebar-bg: var(--muted, #0f0f0f);
+    --artifact-bg: var(--card, #0f0f0f);
+    --chat-border: var(--border, #27272a);
+    --message-user-bg: var(--secondary, #18181b);
+    --message-user-text: var(--foreground, #ffffff);
+    --message-ai-text: var(--foreground, #ffffff);
+    --chat-muted: #a1a1aa;
+
+    --chat-accent: #ffffff;
+    --chat-accent-hover: #e5e5e5;
+    --chat-accent-foreground: #000000;
+
+    --ais-floating-panel-bg: #121214;
+    --ais-floating-panel-border: color-mix(in oklab, var(--chat-border) 80%, transparent);
+    --ais-floating-panel-card-bg: color-mix(in oklab, var(--chat-bg) 94%, white 6%);
+  }
 }
 
 @keyframes ais-chip-pulse {

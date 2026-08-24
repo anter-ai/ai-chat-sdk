@@ -26,6 +26,7 @@ import type { Artifact } from "../types/artifact";
 import {
   extractContent,
   extractError,
+  isRunnerCancellation,
   isRunnerCompletion,
   isRunnerControlEvent,
   resolveEventType,
@@ -232,13 +233,14 @@ function useProvideChat(
       let currentReader = reader;
       let reconnectAttempt = 0;
 
-      const settleStopped = (): void => {
+      const settleStopped = (stopped = false): void => {
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === assistantMessageId && msg.isStreaming
               ? {
                   ...msg,
                   isStreaming: false,
+                  ...(stopped ? { stoppedByUser: true } : {}),
                   elapsedMs: msg.startedAt ? Date.now() - msg.startedAt : msg.elapsedMs,
                 }
               : msg,
@@ -277,6 +279,9 @@ function useProvideChat(
         // Set by any terminal frame so the loop knows the run actually ended (vs. a
         // dropped connection) and must not reconnect.
         let sawTerminal = false;
+        // Terminal *and* a stop: settles with the "stopped" marker rather than silently,
+        // so a cancel from another channel doesn't look like a completed answer.
+        let sawCancellation = false;
         const parser = createParser({
           onEvent(event: EventSourceMessage) {
             if (event.data === "[DONE]") {
@@ -333,6 +338,7 @@ function useProvideChat(
               parsed.isComplete === true ||
               parsed.type === "complete" ||
               isRunnerCompletion(outerEventType, parsed);
+            const isCancellationSignal = isRunnerCancellation(outerEventType, parsed);
 
             let runnerStep: AgentStepEvent | null = null;
             if (isRunnerControl) {
@@ -558,8 +564,9 @@ function useProvideChat(
             );
 
             const eventType = resolveEventType(event.event, parsed);
-            if (isCompletionSignal || eventType === "error") {
+            if (isCompletionSignal || isCancellationSignal || eventType === "error") {
               sawTerminal = true;
+              sawCancellation = sawCancellation || isCancellationSignal;
               setStreamingState({ isStreaming: false });
               setIsLoading(false);
             }
@@ -605,9 +612,9 @@ function useProvideChat(
           // The lock may already be gone when the stream errored out from under us.
         }
 
-        // Clean end (completion / [DONE] / error) or a user abort: settle and stop.
+        // Clean end (completion / [DONE] / error / cancel) or a local abort: settle and stop.
         if (sawTerminal || signal.aborted) {
-          settleStopped();
+          settleStopped(sawCancellation);
           return;
         }
 

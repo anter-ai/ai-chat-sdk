@@ -111,6 +111,18 @@ export function isRunnerCompletion(eventType: string, parsed: StreamEventShape):
   return state === "completed";
 }
 
+/**
+ * True when a runner `status` event signals the run was stopped. The runner emits
+ * `{status:"Stopped", state:"canceled"}` for a cancel from ANY channel — this client's
+ * Stop button, another device, or an operator forcing a wedged run terminal server-side.
+ * It is a deliberate clean end of stream (not an `error` frame), so a client that fails
+ * to recognize it mistakes the stop for a dropped socket and reports a network failure.
+ */
+export function isRunnerCancellation(eventType: string, parsed: StreamEventShape): boolean {
+  if (eventType !== "status") return false;
+  return parsed.payload?.state === "canceled";
+}
+
 const truncate = (value: string, max = 160): string =>
   value.length > max ? `${value.slice(0, max - 1)}…` : value;
 

@@ -2,6 +2,7 @@ import { describe, it, expect } from "@jest/globals";
 import {
   extractContent,
   extractError,
+  isRunnerCancellation,
   isRunnerCompletion,
   isRunnerControlEvent,
   resolveEventType,
@@ -88,6 +89,24 @@ describe("isRunnerCompletion", () => {
     expect(isRunnerCompletion("status", { payload: { state: "completed" } })).toBe(true);
     expect(isRunnerCompletion("status", { payload: { state: "analyzing" } })).toBe(false);
     expect(isRunnerCompletion("content", { payload: { state: "completed" } })).toBe(false);
+  });
+
+  it("does not treat a cancel as a completion", () => {
+    expect(
+      isRunnerCompletion("status", { payload: { status: "Stopped", state: "canceled" } }),
+    ).toBe(false);
+  });
+});
+
+describe("isRunnerCancellation", () => {
+  it("is true only for status events in the canceled state", () => {
+    // The exact frame the runner emits for a user-initiated stop.
+    expect(
+      isRunnerCancellation("status", { payload: { status: "Stopped", state: "canceled" } }),
+    ).toBe(true);
+    expect(isRunnerCancellation("status", { payload: { state: "completed" } })).toBe(false);
+    expect(isRunnerCancellation("status", { payload: { state: "analyzing" } })).toBe(false);
+    expect(isRunnerCancellation("content", { payload: { state: "canceled" } })).toBe(false);
   });
 });
 

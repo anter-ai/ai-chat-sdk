@@ -88,7 +88,11 @@ export interface ChatMessage {
   timestamp: Date;
   sources?: MessageSource[];
   isStreaming?: boolean;
-  /** True when the user stopped this response mid-stream (renders a "Stopped" marker). */
+  /**
+   * True when this response was stopped mid-stream (renders a "Stopped" marker) — by the
+   * composer Stop button, or by a `status`/`canceled` frame when the run was cancelled
+   * from another channel.
+   */
   stoppedByUser?: boolean;
   error?: string;
   steps?: AgentStepEvent[];

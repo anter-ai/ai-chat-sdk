@@ -245,7 +245,7 @@ export function ChatMessage({
         ) : null}
         {message.error ? <p className="ais-message-error">{message.error}</p> : null}
         {!isUser && message.stoppedByUser ? (
-          <p className="ais-message-stopped">You stopped this response.</p>
+          <p className="ais-message-stopped">{strings.responseStopped}</p>
         ) : null}
         {!isUser && !message.isStreaming && message.error ? (
           <button type="button" className="ais-retry-btn" onClick={onRetry}>

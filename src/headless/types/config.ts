@@ -94,6 +94,9 @@ export const defaultStrings = {
   approvalDenied: "Denied",
   approvalExpired: "Expired",
   approvalCanceled: "Canceled",
+  // Deliberately not "You stopped this response" — a run can also be stopped from
+  // another channel (another device, or an operator ending a wedged run server-side).
+  responseStopped: "This response was stopped.",
 } as const;
 
 export type ChatStrings = typeof defaultStrings;

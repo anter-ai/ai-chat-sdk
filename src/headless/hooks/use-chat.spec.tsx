@@ -232,6 +232,59 @@ describe("useChat stream-drop recovery", () => {
   });
 });
 
+describe("useChat cancellation", () => {
+  // The runner ends a stopped run with a `status`/`canceled` frame rather than an
+  // `error` frame. Before this was recognized, the stream looked like it ended with
+  // no terminal frame, so a stop was reported to the user as a lost connection.
+  const canceledFrame = sseFrame({
+    type: "status",
+    payload: { status: "Stopped", state: "canceled" },
+  });
+
+  it("settles a canceled run as stopped, with no error and no reconnect", async () => {
+    const getExecutionStream = jest.fn<GetExecutionStream>();
+    const adapter = makeAdapter({
+      sendMessage: jest.fn(async () =>
+        streamOf([
+          startedFrame,
+          sseFrame({ content: "partial", isComplete: false }),
+          canceledFrame,
+        ]),
+      ),
+      getExecutionStream,
+    } as Partial<ChatAdapter>);
+
+    const { result } = renderChat(adapter);
+    await act(async () => {
+      await result.current.sendMessage("list my portfolios");
+    });
+
+    expect(getExecutionStream).not.toHaveBeenCalled();
+    const assistant = lastAssistantMessage(result);
+    expect(assistant?.error).toBeUndefined();
+    expect(assistant?.stoppedByUser).toBe(true);
+    expect(assistant?.isStreaming).toBe(false);
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it("does not mark a normally completed run as stopped", async () => {
+    const adapter = makeAdapter({
+      sendMessage: jest.fn(async () =>
+        streamOf([startedFrame, sseFrame({ content: "All done", isComplete: false }), doneFrame]),
+      ),
+    } as Partial<ChatAdapter>);
+
+    const { result } = renderChat(adapter);
+    await act(async () => {
+      await result.current.sendMessage("hello");
+    });
+
+    const assistant = lastAssistantMessage(result);
+    expect(assistant?.stoppedByUser).toBeUndefined();
+    expect(assistant?.error).toBeUndefined();
+  });
+});
+
 describe("useChat artifacts lifecycle", () => {
   it("clears artifacts when loadSession or clearMessages is called", async () => {
     const onArtifactsReady = jest.fn();

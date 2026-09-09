@@ -295,5 +295,50 @@ describe("ChatComposer", () => {
       expect(screen.getByRole("button", { name: "Stop response" })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: defaultStrings.sendMessage })).not.toBeInTheDocument();
     });
+
+    it("Send button is disabled while files are actively uploading", async () => {
+      let resolveUpload: any;
+      const uploadPromise = new Promise((resolve) => {
+        resolveUpload = resolve;
+      });
+
+      (useChatContext as jest.Mock).mockReturnValue({
+        config: { ...mockConfig, enableFileUpload: true },
+        strings: defaultStrings,
+        currentSession: { sessionId: "session-1" },
+        activeContextId: undefined,
+        activeContextLabel: undefined,
+        setActiveContext: jest.fn(),
+        topBanner: null,
+        setTopBanner: jest.fn(),
+        bottomBanner: null,
+        setBottomBanner: jest.fn(),
+        announcement: null,
+        setAnnouncement: jest.fn(),
+        plugins: {},
+        adapter: {
+          createSession: jest.fn(),
+          uploadFile: jest.fn(() => uploadPromise),
+        },
+        organizationId: "org-123",
+        contextReferences: [],
+      });
+
+      const { container } = render(<ChatComposer onSendMessage={mockOnSendMessage} />);
+      const textarea = screen.getByPlaceholderText(defaultStrings.composerPlaceholder);
+      fireEvent.change(textarea, { target: { value: "Message with file" } });
+
+      const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+      const testFile = new File(["dummy content"], "test.pdf", { type: "application/pdf" });
+
+      fireEvent.change(fileInput, { target: { files: [testFile] } });
+
+      const sendBtn = screen.getByRole("button", { name: defaultStrings.sendMessage });
+      expect(sendBtn).toBeDisabled();
+
+      // Hitting Enter should also not submit while uploading
+      fireEvent.keyDown(textarea, { key: "Enter", code: "Enter" });
+      expect(mockOnSendMessage).not.toHaveBeenCalled();
+    });
   });
 });

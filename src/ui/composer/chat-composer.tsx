@@ -80,6 +80,10 @@ export function ChatComposer({
   } = config;
 
   const showTools = enableToolsProp ?? configEnableTools ?? true;
+  // Voice input is currently rendered as a disabled placeholder ("coming soon") by default.
+  // When enableVoiceInput is explicitly set to false (via prop or ChatConfig), the button
+  // is completely excluded from the DOM so consumer applications can present a clean,
+  // unencumbered composer without inactive placeholder affordances.
   const showVoiceInput = enableVoiceInputProp ?? configEnableVoiceInput ?? true;
   const showSendButton = enableSendButtonProp ?? configEnableSendButton ?? true;
   // Show the Resume/Retry control only when idle, enabled, wired, and the backend hint
@@ -237,9 +241,12 @@ export function ChatComposer({
     });
   }, [showMentionMenu, mentionMenuItems]);
 
+  const isUploading = pendingFiles.some((f) => f.status === "uploading");
+  const canSubmit = Boolean(value.trim()) && !isStreaming && !isUploading;
+
   const submit = (overrideValue?: string) => {
     const message = (overrideValue ?? value).trim();
-    if (!message || isStreaming) return;
+    if (!message || isStreaming || isUploading) return;
 
     const fileIds = pendingFiles.filter((f) => f.status !== "uploading").map((f) => f.id);
 
@@ -537,6 +544,7 @@ export function ChatComposer({
               </button>
             ) : (
               <>
+                {/* Voice input placeholder ("coming soon"). Completely omitted when enableVoiceInput is false. */}
                 {showVoiceInput && (
                   <button
                     className="ais-composer-footer-btn ais-composer-footer-btn--soon"
@@ -554,10 +562,11 @@ export function ChatComposer({
                     type="button"
                     aria-label={strings.sendMessage}
                     title={strings.sendMessage}
-                    disabled={isStreaming || !value.trim()}
+                    disabled={!canSubmit}
                     onClick={() => submit()}
                   >
                     <ArrowUp size={16} />
+                    <span className="ais-sr-only">{strings.sendMessage}</span>
                   </button>
                 )}
               </>

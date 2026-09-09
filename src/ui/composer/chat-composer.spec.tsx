@@ -146,4 +146,85 @@ describe("ChatComposer", () => {
     fireEvent.click(stopButton);
     expect(mockOnStop).toHaveBeenCalledTimes(1);
   });
+
+  describe("tools and voice input controls", () => {
+    it("renders Tools button by default", () => {
+      render(<ChatComposer onSendMessage={mockOnSendMessage} />);
+      expect(screen.getByRole("button", { name: "Tools" })).toBeInTheDocument();
+    });
+
+    it("does not render Tools button when enableTools is false in config", () => {
+      (useChatContext as jest.Mock).mockReturnValueOnce({
+        config: { ...mockConfig, enableTools: false },
+        strings: defaultStrings,
+        currentSession: null,
+        activeContextId: undefined,
+        activeContextLabel: undefined,
+        setActiveContext: jest.fn(),
+        topBanner: null,
+        setTopBanner: jest.fn(),
+        bottomBanner: null,
+        setBottomBanner: jest.fn(),
+        announcement: null,
+        setAnnouncement: jest.fn(),
+        plugins: {},
+        adapter: { createSession: jest.fn() },
+        organizationId: "org-123",
+        contextReferences: [],
+      });
+      render(<ChatComposer onSendMessage={mockOnSendMessage} />);
+      expect(screen.queryByRole("button", { name: "Tools" })).not.toBeInTheDocument();
+    });
+
+    it("does not render Tools button when enableTools={false} prop is passed", () => {
+      render(<ChatComposer onSendMessage={mockOnSendMessage} enableTools={false} />);
+      expect(screen.queryByRole("button", { name: "Tools" })).not.toBeInTheDocument();
+    });
+
+    it("renders Voice button by default when not streaming", () => {
+      render(<ChatComposer onSendMessage={mockOnSendMessage} />);
+      expect(screen.getByRole("button", { name: /Voice input/i })).toBeInTheDocument();
+    });
+
+    it("does not render Voice button when enableVoiceInput is false in config", () => {
+      (useChatContext as jest.Mock).mockReturnValueOnce({
+        config: { ...mockConfig, enableVoiceInput: false },
+        strings: defaultStrings,
+        currentSession: null,
+        activeContextId: undefined,
+        activeContextLabel: undefined,
+        setActiveContext: jest.fn(),
+        topBanner: null,
+        setTopBanner: jest.fn(),
+        bottomBanner: null,
+        setBottomBanner: jest.fn(),
+        announcement: null,
+        setAnnouncement: jest.fn(),
+        plugins: {},
+        adapter: { createSession: jest.fn() },
+        organizationId: "org-123",
+        contextReferences: [],
+      });
+      render(<ChatComposer onSendMessage={mockOnSendMessage} />);
+      expect(screen.queryByRole("button", { name: /Voice input/i })).not.toBeInTheDocument();
+    });
+
+    it("does not render Voice button when enableVoiceInput={false} prop is passed", () => {
+      render(<ChatComposer onSendMessage={mockOnSendMessage} enableVoiceInput={false} />);
+      expect(screen.queryByRole("button", { name: /Voice input/i })).not.toBeInTheDocument();
+    });
+
+    it("renders Stop button while streaming even if enableVoiceInput is false", () => {
+      render(
+        <ChatComposer
+          onSendMessage={mockOnSendMessage}
+          isStreaming
+          onStop={mockOnStop}
+          enableVoiceInput={false}
+        />,
+      );
+      expect(screen.getByRole("button", { name: "Stop response" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Voice input/i })).not.toBeInTheDocument();
+    });
+  });
 });

@@ -35,6 +35,8 @@ interface ChatComposerProps {
    */
   resumeState?: ResumeState;
   onResume?: () => void;
+  enableTools?: boolean;
+  enableVoiceInput?: boolean;
   className?: string;
 }
 
@@ -44,6 +46,8 @@ export function ChatComposer({
   onStop,
   resumeState,
   onResume,
+  enableTools: enableToolsProp,
+  enableVoiceInput: enableVoiceInputProp,
   className,
 }: ChatComposerProps) {
   const {
@@ -65,7 +69,15 @@ export function ChatComposer({
     addContextReference,
     removeContextReference,
   } = useChatContext();
-  const { enableFileUpload, enableResumeRetry } = config;
+  const {
+    enableFileUpload,
+    enableResumeRetry,
+    enableTools: configEnableTools,
+    enableVoiceInput: configEnableVoiceInput,
+  } = config;
+
+  const showTools = enableToolsProp ?? configEnableTools ?? true;
+  const showVoiceInput = enableVoiceInputProp ?? configEnableVoiceInput ?? true;
   // Show the Resume/Retry control only when idle, enabled, wired, and the backend hint
   // says the last run is recoverable. `resumable` → continue from checkpoint; `retry` →
   // re-send the last turn (the handler decides; this only picks the label).
@@ -443,7 +455,9 @@ export function ChatComposer({
             onUploadFiles={() => fileInputRef.current?.click()}
           />
         ) : null}
-        {showToolsMenu ? <ComposerToolsMenu onClose={() => setShowToolsMenu(false)} /> : null}
+        {showTools && showToolsMenu ? (
+          <ComposerToolsMenu onClose={() => setShowToolsMenu(false)} />
+        ) : null}
         {enableFileUpload && (
           <input
             accept="image/*,.pdf,.docx,.doc,.xlsx,.xls,.csv,.txt,.md"
@@ -471,20 +485,22 @@ export function ChatComposer({
                 <Plus size={16} />
               </button>
             )}
-            <button
-              aria-expanded={showToolsMenu}
-              aria-haspopup="menu"
-              aria-label="Tools"
-              className="ais-composer-footer-btn"
-              onClick={() => {
-                setShowPlusMenu(false);
-                setShowToolsMenu((v) => !v);
-              }}
-              type="button"
-            >
-              <SlidersHorizontal size={14} />
-              <span>Tools</span>
-            </button>
+            {showTools && (
+              <button
+                aria-expanded={showToolsMenu}
+                aria-haspopup="menu"
+                aria-label="Tools"
+                className="ais-composer-footer-btn"
+                onClick={() => {
+                  setShowPlusMenu(false);
+                  setShowToolsMenu((v) => !v);
+                }}
+                type="button"
+              >
+                <SlidersHorizontal size={14} />
+                <span>Tools</span>
+              </button>
+            )}
             {plugins?.composerActions}
           </div>
           <div className="ais-composer-footer-right">
@@ -515,7 +531,7 @@ export function ChatComposer({
                 <Square size={14} fill="currentColor" />
                 <span>Stop</span>
               </button>
-            ) : (
+            ) : showVoiceInput ? (
               <button
                 className="ais-composer-footer-btn ais-composer-footer-btn--soon"
                 type="button"
@@ -525,7 +541,7 @@ export function ChatComposer({
               >
                 <Mic size={16} />
               </button>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

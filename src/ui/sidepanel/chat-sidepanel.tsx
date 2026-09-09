@@ -54,6 +54,16 @@ export interface ChatSidepanelProps {
   emptyState?: React.ReactNode;
   /** Optional classes for custom styling overrides. */
   className?: string;
+  /**
+   * Whether to show the Tools button in the composer footer.
+   * Overrides `config.enableTools` if provided. Defaults to true.
+   */
+  enableTools?: boolean;
+  /**
+   * Whether to show the voice input (microphone) button in the composer footer.
+   * Overrides `config.enableVoiceInput` if provided. Defaults to true.
+   */
+  enableVoiceInput?: boolean;
 }
 
 function resolveFullChatUrl(
@@ -108,6 +118,8 @@ function ChatSidepanelContent({
   artifactsCtx,
   sourcesCtx,
   filesCtx,
+  enableTools,
+  enableVoiceInput,
 }: ChatSidepanelContentProps) {
   const { adapter, config, orgLabel } = useChatContext();
   const {
@@ -376,6 +388,8 @@ function ChatSidepanelContent({
         </div>
 
         <ChatComposer
+          enableTools={enableTools}
+          enableVoiceInput={enableVoiceInput}
           isStreaming={isStreaming}
           onStop={stopStreaming}
           resumeState={resumeState}

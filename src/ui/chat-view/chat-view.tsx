@@ -35,6 +35,8 @@ export interface ChatViewProps {
   emptyState?: React.ReactNode;
   tips?: ComposerAnnouncement[];
   hideMessageActions?: boolean;
+  enableTools?: boolean;
+  enableVoiceInput?: boolean;
 }
 
 export function ChatView({
@@ -49,6 +51,8 @@ export function ChatView({
   emptyState,
   tips = [],
   hideMessageActions,
+  enableTools,
+  enableVoiceInput,
 }: ChatViewProps) {
   const { config } = useChatContext();
   const artifactsCtx = useArtifacts();
@@ -76,6 +80,8 @@ export function ChatView({
         emptyState={emptyState}
         tips={tips}
         hideMessageActions={hideMessageActions}
+        enableTools={enableTools}
+        enableVoiceInput={enableVoiceInput}
       />
     </ChatStateProvider>
   );
@@ -104,6 +110,8 @@ function ChatViewContent({
   emptyState,
   tips = [],
   hideMessageActions,
+  enableTools,
+  enableVoiceInput,
 }: ChatViewContentProps) {
   const {
     sendMessage,
@@ -276,6 +284,8 @@ function ChatViewContent({
                     hideMessageActions={hideMessageActions}
                   />
                   <ChatComposer
+                    enableTools={enableTools}
+                    enableVoiceInput={enableVoiceInput}
                     isStreaming={isStreaming}
                     onStop={stopStreaming}
                     resumeState={resumeState}

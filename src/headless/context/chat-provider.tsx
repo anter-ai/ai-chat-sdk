@@ -211,6 +211,8 @@ export function ChatProvider({
     enableCommandPalette: config.enableCommandPalette ?? true,
     enableSlashFocusShortcut: config.enableSlashFocusShortcut ?? true,
     enableResumeRetry: config.enableResumeRetry ?? true,
+    enableTools: config.enableTools ?? true,
+    enableVoiceInput: config.enableVoiceInput ?? true,
     defaultModel: config.defaultModel ?? "claude-sonnet-4-6",
     theme: config.theme ?? "system",
     themeOptions: config.themeOptions ?? {},

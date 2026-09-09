@@ -81,6 +81,16 @@ interface ChatShellProps {
     resumeState: ResumeState,
     executionId?: string,
   ) => void;
+  /**
+   * Whether to show the Tools button in the composer footer.
+   * Overrides `config.enableTools` if provided. Defaults to true.
+   */
+  enableTools?: boolean;
+  /**
+   * Whether to show the voice input (microphone) button in the composer footer.
+   * Overrides `config.enableVoiceInput` if provided. Defaults to true.
+   */
+  enableVoiceInput?: boolean;
 }
 
 export function ChatShell({
@@ -100,6 +110,8 @@ export function ChatShell({
   sidebarLinks,
   hideMessageActions,
   onStreamingChange,
+  enableTools,
+  enableVoiceInput,
 }: ChatShellProps) {
   const { config } = useChatContext();
   const artifactsCtx = useArtifacts();
@@ -131,6 +143,8 @@ export function ChatShell({
         sidebarLinks={sidebarLinks}
         hideMessageActions={hideMessageActions}
         onStreamingChange={onStreamingChange}
+        enableTools={enableTools}
+        enableVoiceInput={enableVoiceInput}
       />
     </ChatStateProvider>
   );
@@ -164,6 +178,8 @@ function ChatShellContent({
   sidebarLinks,
   hideMessageActions,
   onStreamingChange,
+  enableTools,
+  enableVoiceInput,
 }: ChatShellContentProps) {
   const {
     sendMessage,
@@ -491,6 +507,8 @@ function ChatShellContent({
                         hideMessageActions={hideMessageActions}
                       />
                       <ChatComposer
+                        enableTools={enableTools}
+                        enableVoiceInput={enableVoiceInput}
                         isStreaming={isStreaming}
                         onStop={stopStreaming}
                         resumeState={resumeState}

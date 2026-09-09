@@ -33,6 +33,16 @@ interface ChatWidgetProps {
   brand?: React.ReactNode;
   /** Optional custom brand icon/mascot to replace the default Sparkles icon. */
   brandIcon?: React.ReactNode;
+  /**
+   * Whether to show the Tools button in the composer footer.
+   * Overrides `config.enableTools` if provided. Defaults to true.
+   */
+  enableTools?: boolean;
+  /**
+   * Whether to show the voice input (microphone) button in the composer footer.
+   * Overrides `config.enableVoiceInput` if provided. Defaults to true.
+   */
+  enableVoiceInput?: boolean;
 }
 
 function resolveFullChatUrl(
@@ -58,6 +68,8 @@ export function ChatWidget({
   trigger,
   brand,
   brandIcon,
+  enableTools,
+  enableVoiceInput,
 }: ChatWidgetProps) {
   return (
     <ChatStateProvider>
@@ -73,6 +85,8 @@ export function ChatWidget({
         trigger={trigger}
         brand={brand}
         brandIcon={brandIcon}
+        enableTools={enableTools}
+        enableVoiceInput={enableVoiceInput}
       />
     </ChatStateProvider>
   );
@@ -90,6 +104,8 @@ function ChatWidgetContent({
   trigger,
   brand,
   brandIcon,
+  enableTools,
+  enableVoiceInput,
 }: ChatWidgetProps) {
   const [open, setOpen] = useState(initialOpen);
   const { config, orgLabel } = useChatContext();
@@ -238,6 +254,8 @@ function ChatWidgetContent({
               )}
             </div>
             <ChatComposer
+              enableTools={enableTools}
+              enableVoiceInput={enableVoiceInput}
               isStreaming={isStreaming}
               onStop={stopStreaming}
               resumeState={resumeState}

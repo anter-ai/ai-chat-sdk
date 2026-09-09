@@ -1615,20 +1615,18 @@
 }
 
 .ais-send-button {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
+  padding: 0;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: var(--chat-accent);
   color: var(--chat-accent-foreground);
   border: none;
-  border-radius: var(--chat-radius-md);
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   cursor: pointer;
+  flex-shrink: 0;
   transition:
     opacity 0.2s,
     background-color 0.2s;
@@ -1636,10 +1634,11 @@
 
 .ais-send-button:hover:not(:disabled) {
   background: var(--chat-accent-hover);
+  color: var(--chat-accent-foreground);
 }
 
 .ais-send-button:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: not-allowed;
 }
 

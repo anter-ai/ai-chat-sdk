@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Mic, Plus, RotateCcw, SlidersHorizontal, Square } from "lucide-react";
+import { ArrowUp, Mic, Plus, RotateCcw, SlidersHorizontal, Square } from "lucide-react";
 import { useChatContext } from "../../headless/context/chat-provider";
 import type { ResumeState } from "../../headless/types/session";
 import { SlashCommandMenu } from "./slash-command-menu";
@@ -35,6 +35,9 @@ interface ChatComposerProps {
    */
   resumeState?: ResumeState;
   onResume?: () => void;
+  enableTools?: boolean;
+  enableVoiceInput?: boolean;
+  enableSendButton?: boolean;
   className?: string;
 }
 
@@ -44,6 +47,9 @@ export function ChatComposer({
   onStop,
   resumeState,
   onResume,
+  enableTools: enableToolsProp,
+  enableVoiceInput: enableVoiceInputProp,
+  enableSendButton: enableSendButtonProp,
   className,
 }: ChatComposerProps) {
   const {
@@ -65,7 +71,21 @@ export function ChatComposer({
     addContextReference,
     removeContextReference,
   } = useChatContext();
-  const { enableFileUpload, enableResumeRetry } = config;
+  const {
+    enableFileUpload,
+    enableResumeRetry,
+    enableTools: configEnableTools,
+    enableVoiceInput: configEnableVoiceInput,
+    enableSendButton: configEnableSendButton,
+  } = config;
+
+  const showTools = enableToolsProp ?? configEnableTools ?? true;
+  // Voice input is currently rendered as a disabled placeholder ("coming soon") by default.
+  // When enableVoiceInput is explicitly set to false (via prop or ChatConfig), the button
+  // is completely excluded from the DOM so consumer applications can present a clean,
+  // unencumbered composer without inactive placeholder affordances.
+  const showVoiceInput = enableVoiceInputProp ?? configEnableVoiceInput ?? true;
+  const showSendButton = enableSendButtonProp ?? configEnableSendButton ?? true;
   // Show the Resume/Retry control only when idle, enabled, wired, and the backend hint
   // says the last run is recoverable. `resumable` → continue from checkpoint; `retry` →
   // re-send the last turn (the handler decides; this only picks the label).
@@ -221,9 +241,12 @@ export function ChatComposer({
     });
   }, [showMentionMenu, mentionMenuItems]);
 
+  const isUploading = pendingFiles.some((f) => f.status === "uploading");
+  const canSubmit = Boolean(value.trim()) && !isStreaming && !isUploading;
+
   const submit = (overrideValue?: string) => {
     const message = (overrideValue ?? value).trim();
-    if (!message || isStreaming) return;
+    if (!message || isStreaming || isUploading) return;
 
     const fileIds = pendingFiles.filter((f) => f.status !== "uploading").map((f) => f.id);
 
@@ -443,7 +466,9 @@ export function ChatComposer({
             onUploadFiles={() => fileInputRef.current?.click()}
           />
         ) : null}
-        {showToolsMenu ? <ComposerToolsMenu onClose={() => setShowToolsMenu(false)} /> : null}
+        {showTools && showToolsMenu ? (
+          <ComposerToolsMenu onClose={() => setShowToolsMenu(false)} />
+        ) : null}
         {enableFileUpload && (
           <input
             accept="image/*,.pdf,.docx,.doc,.xlsx,.xls,.csv,.txt,.md"
@@ -471,20 +496,22 @@ export function ChatComposer({
                 <Plus size={16} />
               </button>
             )}
-            <button
-              aria-expanded={showToolsMenu}
-              aria-haspopup="menu"
-              aria-label="Tools"
-              className="ais-composer-footer-btn"
-              onClick={() => {
-                setShowPlusMenu(false);
-                setShowToolsMenu((v) => !v);
-              }}
-              type="button"
-            >
-              <SlidersHorizontal size={14} />
-              <span>Tools</span>
-            </button>
+            {showTools && (
+              <button
+                aria-expanded={showToolsMenu}
+                aria-haspopup="menu"
+                aria-label="Tools"
+                className="ais-composer-footer-btn"
+                onClick={() => {
+                  setShowPlusMenu(false);
+                  setShowToolsMenu((v) => !v);
+                }}
+                type="button"
+              >
+                <SlidersHorizontal size={14} />
+                <span>Tools</span>
+              </button>
+            )}
             {plugins?.composerActions}
           </div>
           <div className="ais-composer-footer-right">
@@ -516,15 +543,33 @@ export function ChatComposer({
                 <span>Stop</span>
               </button>
             ) : (
-              <button
-                className="ais-composer-footer-btn ais-composer-footer-btn--soon"
-                type="button"
-                aria-label="Voice input — coming soon"
-                title="Voice input — coming soon"
-                disabled
-              >
-                <Mic size={16} />
-              </button>
+              <>
+                {/* Voice input placeholder ("coming soon"). Completely omitted when enableVoiceInput is false. */}
+                {showVoiceInput && (
+                  <button
+                    className="ais-composer-footer-btn ais-composer-footer-btn--soon"
+                    type="button"
+                    aria-label="Voice input — coming soon"
+                    title="Voice input — coming soon"
+                    disabled
+                  >
+                    <Mic size={16} />
+                  </button>
+                )}
+                {showSendButton && (
+                  <button
+                    className="ais-composer-footer-btn ais-send-button"
+                    type="button"
+                    aria-label={strings.sendMessage}
+                    title={strings.sendMessage}
+                    disabled={!canSubmit}
+                    onClick={() => submit()}
+                  >
+                    <ArrowUp size={16} />
+                    <span className="ais-sr-only">{strings.sendMessage}</span>
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>

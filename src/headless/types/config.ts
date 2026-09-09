@@ -40,6 +40,9 @@ export interface ChatConfig {
    * and (for Resume) implement `resumeExecution`. Defaults to true.
    */
   enableResumeRetry?: boolean;
+  enableTools?: boolean;
+  enableVoiceInput?: boolean;
+  enableSendButton?: boolean;
   defaultModel?: string;
   theme?: "light" | "dark" | "system";
   themeOptions?: ChatThemeSpecification;

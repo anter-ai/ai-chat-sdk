@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Mic, Plus, RotateCcw, SlidersHorizontal, Square } from "lucide-react";
+import { ArrowUp, Mic, Plus, RotateCcw, SlidersHorizontal, Square } from "lucide-react";
 import { useChatContext } from "../../headless/context/chat-provider";
 import type { ResumeState } from "../../headless/types/session";
 import { SlashCommandMenu } from "./slash-command-menu";
@@ -37,6 +37,7 @@ interface ChatComposerProps {
   onResume?: () => void;
   enableTools?: boolean;
   enableVoiceInput?: boolean;
+  enableSendButton?: boolean;
   className?: string;
 }
 
@@ -48,6 +49,7 @@ export function ChatComposer({
   onResume,
   enableTools: enableToolsProp,
   enableVoiceInput: enableVoiceInputProp,
+  enableSendButton: enableSendButtonProp,
   className,
 }: ChatComposerProps) {
   const {
@@ -74,10 +76,12 @@ export function ChatComposer({
     enableResumeRetry,
     enableTools: configEnableTools,
     enableVoiceInput: configEnableVoiceInput,
+    enableSendButton: configEnableSendButton,
   } = config;
 
   const showTools = enableToolsProp ?? configEnableTools ?? true;
   const showVoiceInput = enableVoiceInputProp ?? configEnableVoiceInput ?? true;
+  const showSendButton = enableSendButtonProp ?? configEnableSendButton ?? true;
   // Show the Resume/Retry control only when idle, enabled, wired, and the backend hint
   // says the last run is recoverable. `resumable` → continue from checkpoint; `retry` →
   // re-send the last turn (the handler decides; this only picks the label).
@@ -531,17 +535,33 @@ export function ChatComposer({
                 <Square size={14} fill="currentColor" />
                 <span>Stop</span>
               </button>
-            ) : showVoiceInput ? (
-              <button
-                className="ais-composer-footer-btn ais-composer-footer-btn--soon"
-                type="button"
-                aria-label="Voice input — coming soon"
-                title="Voice input — coming soon"
-                disabled
-              >
-                <Mic size={16} />
-              </button>
-            ) : null}
+            ) : (
+              <>
+                {showVoiceInput && (
+                  <button
+                    className="ais-composer-footer-btn ais-composer-footer-btn--soon"
+                    type="button"
+                    aria-label="Voice input — coming soon"
+                    title="Voice input — coming soon"
+                    disabled
+                  >
+                    <Mic size={16} />
+                  </button>
+                )}
+                {showSendButton && (
+                  <button
+                    className="ais-composer-footer-btn ais-send-button"
+                    type="button"
+                    aria-label={strings.sendMessage}
+                    title={strings.sendMessage}
+                    disabled={isStreaming || !value.trim()}
+                    onClick={() => submit()}
+                  >
+                    <ArrowUp size={16} />
+                  </button>
+                )}
+              </>
+            )}
           </div>
         </div>
       </div>

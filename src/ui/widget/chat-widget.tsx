@@ -43,6 +43,10 @@ interface ChatWidgetProps {
    * Overrides `config.enableVoiceInput` if provided. Defaults to true.
    */
   enableVoiceInput?: boolean;
+  /**
+   * Overrides `config.enableSendButton` if provided. Defaults to true.
+   */
+  enableSendButton?: boolean;
 }
 
 function resolveFullChatUrl(
@@ -70,6 +74,7 @@ export function ChatWidget({
   brandIcon,
   enableTools,
   enableVoiceInput,
+  enableSendButton,
 }: ChatWidgetProps) {
   return (
     <ChatStateProvider>
@@ -87,6 +92,7 @@ export function ChatWidget({
         brandIcon={brandIcon}
         enableTools={enableTools}
         enableVoiceInput={enableVoiceInput}
+        enableSendButton={enableSendButton}
       />
     </ChatStateProvider>
   );
@@ -106,6 +112,7 @@ function ChatWidgetContent({
   brandIcon,
   enableTools,
   enableVoiceInput,
+  enableSendButton,
 }: ChatWidgetProps) {
   const [open, setOpen] = useState(initialOpen);
   const { config, orgLabel } = useChatContext();
@@ -256,6 +263,7 @@ function ChatWidgetContent({
             <ChatComposer
               enableTools={enableTools}
               enableVoiceInput={enableVoiceInput}
+              enableSendButton={enableSendButton}
               isStreaming={isStreaming}
               onStop={stopStreaming}
               resumeState={resumeState}

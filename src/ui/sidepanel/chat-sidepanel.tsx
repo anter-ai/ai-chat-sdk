@@ -64,6 +64,10 @@ export interface ChatSidepanelProps {
    * Overrides `config.enableVoiceInput` if provided. Defaults to true.
    */
   enableVoiceInput?: boolean;
+  /**
+   * Overrides `config.enableSendButton` if provided. Defaults to true.
+   */
+  enableSendButton?: boolean;
 }
 
 function resolveFullChatUrl(
@@ -120,6 +124,7 @@ function ChatSidepanelContent({
   filesCtx,
   enableTools,
   enableVoiceInput,
+  enableSendButton,
 }: ChatSidepanelContentProps) {
   const { adapter, config, orgLabel } = useChatContext();
   const {
@@ -390,6 +395,7 @@ function ChatSidepanelContent({
         <ChatComposer
           enableTools={enableTools}
           enableVoiceInput={enableVoiceInput}
+          enableSendButton={enableSendButton}
           isStreaming={isStreaming}
           onStop={stopStreaming}
           resumeState={resumeState}

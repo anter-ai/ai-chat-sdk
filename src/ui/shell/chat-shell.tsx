@@ -91,6 +91,10 @@ interface ChatShellProps {
    * Overrides `config.enableVoiceInput` if provided. Defaults to true.
    */
   enableVoiceInput?: boolean;
+  /**
+   * Overrides `config.enableSendButton` if provided. Defaults to true.
+   */
+  enableSendButton?: boolean;
 }
 
 export function ChatShell({
@@ -112,6 +116,7 @@ export function ChatShell({
   onStreamingChange,
   enableTools,
   enableVoiceInput,
+  enableSendButton,
 }: ChatShellProps) {
   const { config } = useChatContext();
   const artifactsCtx = useArtifacts();
@@ -145,6 +150,7 @@ export function ChatShell({
         onStreamingChange={onStreamingChange}
         enableTools={enableTools}
         enableVoiceInput={enableVoiceInput}
+        enableSendButton={enableSendButton}
       />
     </ChatStateProvider>
   );
@@ -180,6 +186,7 @@ function ChatShellContent({
   onStreamingChange,
   enableTools,
   enableVoiceInput,
+  enableSendButton,
 }: ChatShellContentProps) {
   const {
     sendMessage,
@@ -509,6 +516,7 @@ function ChatShellContent({
                       <ChatComposer
                         enableTools={enableTools}
                         enableVoiceInput={enableVoiceInput}
+                        enableSendButton={enableSendButton}
                         isStreaming={isStreaming}
                         onStop={stopStreaming}
                         resumeState={resumeState}

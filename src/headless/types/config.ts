@@ -42,6 +42,7 @@ export interface ChatConfig {
   enableResumeRetry?: boolean;
   enableTools?: boolean;
   enableVoiceInput?: boolean;
+  enableSendButton?: boolean;
   defaultModel?: string;
   theme?: "light" | "dark" | "system";
   themeOptions?: ChatThemeSpecification;

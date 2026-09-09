@@ -37,6 +37,7 @@ export interface ChatViewProps {
   hideMessageActions?: boolean;
   enableTools?: boolean;
   enableVoiceInput?: boolean;
+  enableSendButton?: boolean;
 }
 
 export function ChatView({
@@ -53,6 +54,7 @@ export function ChatView({
   hideMessageActions,
   enableTools,
   enableVoiceInput,
+  enableSendButton,
 }: ChatViewProps) {
   const { config } = useChatContext();
   const artifactsCtx = useArtifacts();
@@ -82,6 +84,7 @@ export function ChatView({
         hideMessageActions={hideMessageActions}
         enableTools={enableTools}
         enableVoiceInput={enableVoiceInput}
+        enableSendButton={enableSendButton}
       />
     </ChatStateProvider>
   );
@@ -112,6 +115,7 @@ function ChatViewContent({
   hideMessageActions,
   enableTools,
   enableVoiceInput,
+  enableSendButton,
 }: ChatViewContentProps) {
   const {
     sendMessage,
@@ -286,6 +290,7 @@ function ChatViewContent({
                   <ChatComposer
                     enableTools={enableTools}
                     enableVoiceInput={enableVoiceInput}
+                    enableSendButton={enableSendButton}
                     isStreaming={isStreaming}
                     onStop={stopStreaming}
                     resumeState={resumeState}

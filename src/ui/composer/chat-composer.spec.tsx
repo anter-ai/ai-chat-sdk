@@ -226,5 +226,74 @@ describe("ChatComposer", () => {
       expect(screen.getByRole("button", { name: "Stop response" })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /Voice input/i })).not.toBeInTheDocument();
     });
+
+    it("renders Send button by default when not streaming", () => {
+      render(<ChatComposer onSendMessage={mockOnSendMessage} />);
+      expect(screen.getByRole("button", { name: defaultStrings.sendMessage })).toBeInTheDocument();
+    });
+
+    it("Send button is disabled when input is empty", () => {
+      render(<ChatComposer onSendMessage={mockOnSendMessage} />);
+      const sendBtn = screen.getByRole("button", { name: defaultStrings.sendMessage });
+      expect(sendBtn).toBeDisabled();
+    });
+
+    it("Send button is enabled when input has text", () => {
+      render(<ChatComposer onSendMessage={mockOnSendMessage} />);
+      const textarea = screen.getByPlaceholderText(defaultStrings.composerPlaceholder);
+      fireEvent.change(textarea, { target: { value: "Hello Theo" } });
+      const sendBtn = screen.getByRole("button", { name: defaultStrings.sendMessage });
+      expect(sendBtn).not.toBeDisabled();
+    });
+
+    it("clicking Send button submits the message and clears input", () => {
+      render(<ChatComposer onSendMessage={mockOnSendMessage} />);
+      const textarea = screen.getByPlaceholderText(defaultStrings.composerPlaceholder);
+      fireEvent.change(textarea, { target: { value: "Send this test" } });
+      const sendBtn = screen.getByRole("button", { name: defaultStrings.sendMessage });
+      fireEvent.click(sendBtn);
+      expect(mockOnSendMessage).toHaveBeenCalledWith("Send this test", undefined);
+      expect(textarea).toHaveValue("");
+    });
+
+    it("does not render Send button when enableSendButton is false in config", () => {
+      (useChatContext as jest.Mock).mockReturnValueOnce({
+        config: { ...mockConfig, enableSendButton: false },
+        strings: defaultStrings,
+        currentSession: null,
+        activeContextId: undefined,
+        activeContextLabel: undefined,
+        setActiveContext: jest.fn(),
+        topBanner: null,
+        setTopBanner: jest.fn(),
+        bottomBanner: null,
+        setBottomBanner: jest.fn(),
+        announcement: null,
+        setAnnouncement: jest.fn(),
+        plugins: {},
+        adapter: { createSession: jest.fn() },
+        organizationId: "org-123",
+        contextReferences: [],
+      });
+      render(<ChatComposer onSendMessage={mockOnSendMessage} />);
+      expect(screen.queryByRole("button", { name: defaultStrings.sendMessage })).not.toBeInTheDocument();
+    });
+
+    it("does not render Send button when enableSendButton={false} prop is passed", () => {
+      render(<ChatComposer onSendMessage={mockOnSendMessage} enableSendButton={false} />);
+      expect(screen.queryByRole("button", { name: defaultStrings.sendMessage })).not.toBeInTheDocument();
+    });
+
+    it("renders Stop button instead of Send button while streaming when onStop is provided", () => {
+      render(
+        <ChatComposer
+          onSendMessage={mockOnSendMessage}
+          isStreaming
+          onStop={mockOnStop}
+        />,
+      );
+      expect(screen.getByRole("button", { name: "Stop response" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: defaultStrings.sendMessage })).not.toBeInTheDocument();
+    });
   });
 });

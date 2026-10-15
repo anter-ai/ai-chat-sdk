@@ -79,7 +79,8 @@ export function ChatSidebar({
 }: ChatSidebarProps) {
   const { adapter, organizationId, currentSession, setCurrentSession, strings } = useChatContext();
   const { sessions, isLoading, refresh, deleteSession } = useConversationHistory();
-  const { loadSession, currentSessionId, isStreaming, clearMessages, messages } = useChat();
+  const { loadSession, switchSession, currentSessionId, isStreaming, clearMessages, messages } =
+    useChat();
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     const persisted = window.localStorage.getItem("ais-chat-sidebar-collapsed");
@@ -345,8 +346,12 @@ export function ChatSidebar({
                 isActive={session.sessionId === currentSessionId}
                 onClick={async () => {
                   try {
-                    const full = await adapter.loadSession(session.sessionId);
-                    loadSession(full);
+                    if (switchSession) {
+                      await switchSession(session.sessionId);
+                    } else {
+                      const full = await adapter.loadSession(session.sessionId);
+                      loadSession(full);
+                    }
                     onViewChange?.("chat");
                     handleClose();
                   } catch {

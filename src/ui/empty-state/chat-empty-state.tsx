@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useChatContext } from "../../headless/context/chat-provider";
+import { useChat } from "../../headless/hooks/use-chat";
 
 export interface StarterCard {
   /** A React node rendered as the card icon (e.g. a Lucide icon component). */
@@ -12,8 +13,8 @@ export interface StarterCard {
   prompt: string;
 }
 
-interface ChatEmptyStateProps {
-  onSendMessage: (message: string) => void;
+export interface ChatEmptyStateProps {
+  onSendMessage?: (message: string) => void;
   starterCards?: StarterCard[];
   heading?: string;
   subheading?: string;
@@ -28,6 +29,7 @@ export function ChatEmptyState({
   compact = false,
 }: ChatEmptyStateProps) {
   let enableSlashCommands = true;
+  let contextSendMessage: ((msg: string) => void) | undefined;
   let resolvedHeading = heading ?? "What would you like to work on today?";
   let resolvedSubheading = subheading;
 
@@ -43,6 +45,23 @@ export function ChatEmptyState({
   } catch {
     // Graceful fallback if rendered outside a ChatProvider
   }
+
+  try {
+    const chat = useChat();
+    contextSendMessage = (msg: string) => {
+      void chat.sendMessage(msg);
+    };
+  } catch {
+    // Graceful fallback if rendered outside ChatStateProvider
+  }
+
+  const handleSend = (msg: string) => {
+    if (onSendMessage) {
+      onSendMessage(msg);
+    } else if (contextSendMessage) {
+      contextSendMessage(msg);
+    }
+  };
 
   return (
     <div className={`ais-empty-state ${compact ? "is-compact" : ""}`.trim()}>
@@ -60,7 +79,7 @@ export function ChatEmptyState({
                 role="listitem"
                 className="ais-starter-card"
                 style={{ animationDelay: `${i * 75}ms` }}
-                onClick={() => onSendMessage(card.prompt)}
+                onClick={() => handleSend(card.prompt)}
                 type="button"
               >
                 <div

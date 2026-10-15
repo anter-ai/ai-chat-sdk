@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Stream-drop recovery behavior of useChat's consumeStream loop.
  *
  * A long-running turn can outlive a single HTTP connection: a proxy or load
@@ -335,5 +335,230 @@ describe("useChat artifacts lifecycle", () => {
     });
 
     expect(onClearArtifacts).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("useChat session loading (Wave 4)", () => {
+  it("tracks isSessionLoading state during switchSession", async () => {
+    let resolveLoad: ((val: any) => void) | null = null;
+    const adapter = makeAdapter({
+      loadSession: jest.fn().mockImplementation(() => {
+        return new Promise((resolve) => {
+          resolveLoad = resolve;
+        });
+      }) as any,
+    });
+
+    const { result } = renderChat(adapter);
+    expect(result.current.isSessionLoading).toBe(false);
+
+    let switchPromise: Promise<any>;
+    act(() => {
+      switchPromise = result.current.switchSession!("sess-delayed");
+    });
+
+    expect(result.current.isSessionLoading).toBe(true);
+    expect(adapter.loadSession).toHaveBeenCalledWith("sess-delayed");
+
+    await act(async () => {
+      resolveLoad!({
+        sessionId: "sess-delayed",
+        title: "Loaded Session",
+        updatedAt: "2026-10-02T00:00:00Z",
+        messages: [],
+      });
+      await switchPromise;
+    });
+
+    expect(result.current.isSessionLoading).toBe(false);
+    expect(result.current.currentSessionId).toBe("sess-delayed");
+  });
+
+  it("aborts active in-flight stream and prevents corruption when switching sessions", async () => {
+    let capturedSignal: AbortSignal | undefined;
+    const adapter = makeAdapter({
+      sendMessage: jest.fn(async (_text, opts?: { signal?: AbortSignal }) => {
+        capturedSignal = opts?.signal;
+        return new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(startedFrame);
+            controller.enqueue(sseFrame({ content: "Partial token in session A..." }));
+          },
+        });
+      }),
+      loadSession: jest.fn(async (sessionId: string) => ({
+        sessionId,
+        title: "Switched Session B",
+        updatedAt: "2026-10-05T00:00:00Z",
+        messages: [
+          {
+            id: "msg_session_b_user",
+            role: "user" as const,
+            content: "Hello from session B",
+            timestamp: new Date(),
+          },
+        ],
+      })),
+    });
+
+    const { result } = renderChat(adapter);
+
+    await act(async () => {
+      void result.current.sendMessage("Initial prompt in session A");
+    });
+
+    expect(capturedSignal?.aborted).toBe(false);
+    expect(result.current.isStreaming).toBe(true);
+
+    await act(async () => {
+      await result.current.switchSession!("session_b");
+    });
+
+    // Old stream signal must be aborted immediately upon switchSession
+    expect(capturedSignal?.aborted).toBe(true);
+    expect(result.current.isStreaming).toBe(false);
+    expect(result.current.currentSessionId).toBe("session_b");
+    expect(result.current.messages).toHaveLength(1);
+    expect(result.current.messages[0]!.id).toBe("msg_session_b_user");
+    expect(result.current.messages[0]!.content).toBe("Hello from session B");
+  });
+});
+
+describe("useChat step progression & status events (Wave 3)", () => {
+  it("creates reasoning steps from simple status events and transitions them to done", async () => {
+    const stream = streamOf([
+      startedFrame,
+      sseFrame({ type: "status", label: "Searching documents..." }),
+      sseFrame({ type: "status", label: "Analyzing results..." }),
+      sseFrame({ content: "Here are the results" }),
+      doneFrame,
+    ]);
+
+    const adapter = makeAdapter({
+      sendMessage: jest.fn(async () => stream),
+    });
+
+    const { result } = renderChat(adapter);
+
+    await act(async () => {
+      await result.current.sendMessage("Find docs");
+    });
+
+    const assistant = lastAssistantMessage(result);
+    expect(assistant).toBeDefined();
+    expect(assistant?.steps).toHaveLength(2);
+    expect(assistant?.steps?.[0]?.status).toBe("done");
+    expect(assistant?.steps?.[0]?.label).toBe("Searching documents...");
+    expect(assistant?.steps?.[1]?.status).toBe("done");
+    expect(assistant?.steps?.[1]?.label).toBe("Analyzing results...");
+  });
+});
+
+describe("useChat streaming source stripper (Wave 3)", () => {
+  it("strips trailing [source: ...] tags and populates sources", async () => {
+    const stream = streamOf([
+      startedFrame,
+      sseFrame({ content: "According to policy, " }),
+      sseFrame({ content: "remote work is permitted. [" }),
+      sseFrame({ content: 'source: Handbook.pdf, tags: HR, citation: "2 days WFH"]' }),
+      doneFrame,
+    ]);
+
+    const adapter = makeAdapter({
+      sendMessage: jest.fn(async () => stream),
+    });
+
+    const { result } = renderChat(adapter);
+
+    await act(async () => {
+      await result.current.sendMessage("What is the WFH policy?");
+    });
+
+    const assistant = lastAssistantMessage(result);
+    expect(assistant).toBeDefined();
+    expect(assistant?.content).toBe("According to policy, remote work is permitted.");
+    expect(assistant?.sources).toHaveLength(1);
+    expect(assistant?.sources?.[0]?.title).toBe("Handbook.pdf");
+    expect(assistant?.sources?.[0]?.snippet).toBe("2 days WFH");
+  });
+
+  it("strips streamed [cite: ...] tags and populates sources", async () => {
+    const stream = streamOf([
+      startedFrame,
+      sseFrame({ content: "For network access, " }),
+      sseFrame({ content: "connect to the secure gateway [cit" }),
+      sseFrame({ content: 'e: Network_Manual.pdf, citation: "VPN required"]' }),
+      doneFrame,
+    ]);
+
+    const adapter = makeAdapter({
+      sendMessage: jest.fn(async () => stream),
+    });
+
+    const { result } = renderChat(adapter);
+
+    await act(async () => {
+      await result.current.sendMessage("How to connect?");
+    });
+
+    const assistant = lastAssistantMessage(result);
+    expect(assistant).toBeDefined();
+    expect(assistant?.content).toBe("For network access, connect to the secure gateway");
+    expect(assistant?.sources).toHaveLength(1);
+    expect(assistant?.sources?.[0]?.title).toBe("Network_Manual.pdf");
+    expect(assistant?.sources?.[0]?.snippet).toBe("VPN required");
+  });
+
+  it("strips streamed OpenAI style 【1†source】 tags and populates sources", async () => {
+    const stream = streamOf([
+      startedFrame,
+      sseFrame({ content: "Revenue increased by 15% " }),
+      sseFrame({ content: "【" }),
+      sseFrame({ content: "1" }),
+      sseFrame({ content: "†" }),
+      sseFrame({ content: "source】" }),
+      sseFrame({ content: " this fiscal year." }),
+      doneFrame,
+    ]);
+
+    const adapter = makeAdapter({
+      sendMessage: jest.fn(async () => stream),
+    });
+
+    const { result } = renderChat(adapter);
+
+    await act(async () => {
+      await result.current.sendMessage("What is the growth rate?");
+    });
+
+    const assistant = lastAssistantMessage(result);
+    expect(assistant).toBeDefined();
+    expect(assistant?.content).toBe("Revenue increased by 15% this fiscal year.");
+    expect(assistant?.sources).toHaveLength(1);
+    expect(assistant?.sources?.[0]?.title).toBe("Source 1");
+  });
+
+  it("suppresses incomplete citation syntax if stream terminates without closing bracket", async () => {
+    const stream = streamOf([
+      startedFrame,
+      sseFrame({ content: "Guidelines are available.\n\n[source: Draft_Policy.pdf" }),
+      doneFrame,
+    ]);
+
+    const adapter = makeAdapter({
+      sendMessage: jest.fn(async () => stream),
+    });
+
+    const { result } = renderChat(adapter);
+
+    await act(async () => {
+      await result.current.sendMessage("Show guidelines");
+    });
+
+    const assistant = lastAssistantMessage(result);
+    expect(assistant).toBeDefined();
+    expect(assistant?.content).toBe("Guidelines are available.");
+    expect(assistant?.sources).toHaveLength(1);
+    expect(assistant?.sources?.[0]?.title).toBe("Draft_Policy.pdf");
   });
 });

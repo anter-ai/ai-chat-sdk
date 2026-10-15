@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import type { ChatMessage, StreamingState } from "../../headless/types/chat";
+import type { ChatMessage, StreamingState, MessageSource } from "../../headless/types/chat";
 import type { ResumeState } from "../../headless/types/session";
 import { ChatStateProvider, useChat } from "../../headless/hooks/use-chat";
 import { useArtifacts, type UseArtifactsReturn } from "../../headless/hooks/use-artifacts";
@@ -95,6 +95,9 @@ interface ChatShellProps {
    * Overrides `config.enableSendButton` if provided. Defaults to true.
    */
   enableSendButton?: boolean;
+  onSourceClick?: (source: MessageSource) => void;
+  renderSourcePill?: (source: MessageSource, index: number) => React.ReactNode;
+  renderCitationModal?: (source: MessageSource, onClose: () => void) => React.ReactNode;
   /**
    * The currently active main view. Supports controlled usage (`"chat"` | `"recents"`).
    * When omitted, the view state is managed internally.
@@ -130,6 +133,9 @@ export function ChatShell({
   enableTools,
   enableVoiceInput,
   enableSendButton,
+  onSourceClick,
+  renderSourcePill,
+  renderCitationModal,
   activeView,
   initialActiveView,
   onViewChange,
@@ -167,6 +173,9 @@ export function ChatShell({
         enableTools={enableTools}
         enableVoiceInput={enableVoiceInput}
         enableSendButton={enableSendButton}
+        onSourceClick={onSourceClick}
+        renderSourcePill={renderSourcePill}
+        renderCitationModal={renderCitationModal}
         activeView={activeView}
         initialActiveView={initialActiveView}
         onViewChange={onViewChange}
@@ -206,6 +215,9 @@ function ChatShellContent({
   enableTools,
   enableVoiceInput,
   enableSendButton,
+  onSourceClick,
+  renderSourcePill,
+  renderCitationModal,
   activeView: propActiveView,
   initialActiveView,
   onViewChange,
@@ -214,6 +226,7 @@ function ChatShellContent({
     sendMessage,
     stopStreaming,
     isStreaming,
+    isSessionLoading,
     clearMessages,
     loadSession,
     adapter,
@@ -528,6 +541,33 @@ function ChatShellContent({
                 className="ais-resizable-panel"
               >
                 <main className="ais-chat-main">
+                  {isSessionLoading && (
+                    <div
+                      className="ais-session-loading-overlay"
+                      role="status"
+                      aria-live="polite"
+                      aria-label="Loading conversation..."
+                    >
+                      <div className="ais-session-loading-skeleton">
+                        <div className="ais-skeleton-header">
+                          <div className="ais-skeleton-avatar" />
+                          <div className="ais-skeleton-lines">
+                            <div className="ais-skeleton-line ais-skeleton-line--title" />
+                            <div className="ais-skeleton-line ais-skeleton-line--meta" />
+                          </div>
+                        </div>
+                        <div className="ais-skeleton-bubble">
+                          <div className="ais-skeleton-line ais-skeleton-line--full" />
+                          <div className="ais-skeleton-line ais-skeleton-line--full" />
+                          <div className="ais-skeleton-line ais-skeleton-line--half" />
+                        </div>
+                        <div className="ais-session-loading-badge">
+                          <div className="ais-spinner" />
+                          <span>Loading conversation...</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   {activeView === "recents" ? (
                     <RecentsPage
                       onSelectSession={() => handleViewChange("chat")}
@@ -542,6 +582,9 @@ function ChatShellContent({
                         renderMessageFooter={renderMessageFooter}
                         emptyState={emptyState}
                         hideMessageActions={hideMessageActions}
+                        onSourceClick={onSourceClick}
+                        renderSourcePill={renderSourcePill}
+                        renderCitationModal={renderCitationModal}
                       />
                       <ChatComposer
                         enableTools={enableTools}
@@ -580,7 +623,11 @@ function ChatShellContent({
                   className="ais-resizable-panel"
                 >
                   {showSourcesPanel ? (
-                    <SourcesPanel sourcesCtx={sourcesCtx} />
+                    <SourcesPanel
+                      sourcesCtx={sourcesCtx}
+                      onSourceClick={onSourceClick}
+                      renderCitationModal={renderCitationModal}
+                    />
                   ) : (
                     showFilesPanel && <FilesPanel filesCtx={filesCtx} />
                   )}

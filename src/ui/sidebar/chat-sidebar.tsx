@@ -77,7 +77,8 @@ export function ChatSidebar({
   hideArtifactsLink = false,
   sidebarLinks = [],
 }: ChatSidebarProps) {
-  const { adapter, organizationId, currentSession, setCurrentSession, strings } = useChatContext();
+  const { adapter, organizationId, currentSession, setCurrentSession, strings, config } =
+    useChatContext();
   const { sessions, isLoading, refresh, deleteSession } = useConversationHistory();
   const { loadSession, switchSession, currentSessionId, isStreaming, clearMessages, messages } =
     useChat();
@@ -203,24 +204,28 @@ export function ChatSidebar({
           onViewChange?.("chat");
         },
       },
-      {
+    ];
+
+    if (config?.enableSearch !== false && config?.enableCommandPalette !== false) {
+      items.push({
         id: "search",
         label: "Search",
         icon: Search,
         action: () => {
           window.dispatchEvent(new CustomEvent("ais-open-command-palette"));
         },
-      },
-      {
-        id: "recents",
-        label: strings?.recentsTitle ?? "Chats",
-        icon: MessageCircle,
-        active: activeView === "recents",
-        action: () => onViewChange?.("recents"),
-      },
-    ];
+      });
+    }
 
-    if (!hideArtifactsLink) {
+    items.push({
+      id: "recents",
+      label: strings?.recentsTitle ?? "Chats",
+      icon: MessageCircle,
+      active: activeView === "recents",
+      action: () => onViewChange?.("recents"),
+    });
+
+    if (!hideArtifactsLink && config?.enableArtifacts !== false) {
       items.push({
         id: "artifacts",
         label: "Artifacts",
@@ -250,6 +255,12 @@ export function ChatSidebar({
     artifactPanelOpen,
     hideArtifactsLink,
     sidebarLinks,
+    strings?.newChat,
+    strings?.newConversation,
+    strings?.recentsTitle,
+    config?.enableSearch,
+    config?.enableCommandPalette,
+    config?.enableArtifacts,
   ]);
 
   function renderRailButton(item: SidebarNavItem) {

@@ -9,6 +9,7 @@ interface ChatShellHeaderProps {
   artifactsCount?: number;
   artifactsPanelOpen?: boolean;
   onToggleArtifacts?: () => void;
+  enableArtifacts?: boolean;
 }
 
 export function ChatShellHeader({
@@ -20,6 +21,7 @@ export function ChatShellHeader({
   artifactsCount = 0,
   artifactsPanelOpen = false,
   onToggleArtifacts,
+  enableArtifacts = true,
 }: ChatShellHeaderProps) {
   return (
     <header className="ais-shell-header">
@@ -34,9 +36,9 @@ export function ChatShellHeader({
       <div className="ais-shell-header-title" title={sessionTitle}>
         {sessionTitle}
       </div>
-      {(onToggleArtifacts || onToggleFiles) && (
+      {((enableArtifacts && onToggleArtifacts) || onToggleFiles) && (
         <div className="ais-shell-header-actions">
-          {onToggleArtifacts && artifactsCount > 0 && (
+          {enableArtifacts && onToggleArtifacts && artifactsCount > 0 && (
             <button
               aria-label={artifactsPanelOpen ? "Close artifacts panel" : "Open artifacts panel"}
               aria-pressed={artifactsPanelOpen}

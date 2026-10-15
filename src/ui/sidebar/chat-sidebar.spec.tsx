@@ -3,12 +3,19 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { ChatSidebar } from "./chat-sidebar";
 
+let mockConfig: any = {
+  enableArtifacts: true,
+  enableSearch: true,
+  enableCommandPalette: true,
+};
+
 jest.mock("../../headless/context/chat-provider", () => ({
   useChatContext: () => ({
     adapter: { loadSession: jest.fn() },
     organizationId: "org-1",
     currentSession: undefined,
     setCurrentSession: jest.fn(),
+    config: mockConfig,
   }),
 }));
 
@@ -38,6 +45,14 @@ jest.mock("../../headless/hooks/use-chat", () => ({
 }));
 
 describe("ChatSidebar custom links", () => {
+  beforeEach(() => {
+    mockConfig = {
+      enableArtifacts: true,
+      enableSearch: true,
+      enableCommandPalette: true,
+    };
+  });
+
   it("renders the built-in Artifacts item by default", () => {
     render(<ChatSidebar />);
     expect(screen.getByRole("button", { name: "Artifacts" })).toBeInTheDocument();
@@ -46,6 +61,28 @@ describe("ChatSidebar custom links", () => {
   it("hides the Artifacts item when hideArtifactsLink is set", () => {
     render(<ChatSidebar hideArtifactsLink />);
     expect(screen.queryByRole("button", { name: "Artifacts" })).not.toBeInTheDocument();
+  });
+
+  it("unmounts the Artifacts item when config.enableArtifacts is false", () => {
+    mockConfig = { enableArtifacts: false, enableSearch: true, enableCommandPalette: true };
+    render(<ChatSidebar />);
+    expect(screen.queryByRole("button", { name: "Artifacts" })).not.toBeInTheDocument();
+  });
+
+  it("renders Search item by default and unmounts when enableSearch is false", () => {
+    const { unmount } = render(<ChatSidebar />);
+    expect(screen.getByRole("button", { name: "Search" })).toBeInTheDocument();
+    unmount();
+
+    mockConfig = { enableArtifacts: true, enableSearch: false, enableCommandPalette: true };
+    render(<ChatSidebar />);
+    expect(screen.queryByRole("button", { name: "Search" })).not.toBeInTheDocument();
+  });
+
+  it("unmounts Search item when enableCommandPalette is false", () => {
+    mockConfig = { enableArtifacts: true, enableSearch: true, enableCommandPalette: false };
+    render(<ChatSidebar />);
+    expect(screen.queryByRole("button", { name: "Search" })).not.toBeInTheDocument();
   });
 
   it("renders host-supplied sidebar links and fires their onClick", () => {

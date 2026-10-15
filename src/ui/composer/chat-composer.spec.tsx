@@ -276,24 +276,24 @@ describe("ChatComposer", () => {
         contextReferences: [],
       });
       render(<ChatComposer onSendMessage={mockOnSendMessage} />);
-      expect(screen.queryByRole("button", { name: defaultStrings.sendMessage })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: defaultStrings.sendMessage }),
+      ).not.toBeInTheDocument();
     });
 
     it("does not render Send button when enableSendButton={false} prop is passed", () => {
       render(<ChatComposer onSendMessage={mockOnSendMessage} enableSendButton={false} />);
-      expect(screen.queryByRole("button", { name: defaultStrings.sendMessage })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: defaultStrings.sendMessage }),
+      ).not.toBeInTheDocument();
     });
 
     it("renders Stop button instead of Send button while streaming when onStop is provided", () => {
-      render(
-        <ChatComposer
-          onSendMessage={mockOnSendMessage}
-          isStreaming
-          onStop={mockOnStop}
-        />,
-      );
+      render(<ChatComposer onSendMessage={mockOnSendMessage} isStreaming onStop={mockOnStop} />);
       expect(screen.getByRole("button", { name: "Stop response" })).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: defaultStrings.sendMessage })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: defaultStrings.sendMessage }),
+      ).not.toBeInTheDocument();
     });
 
     it("Send button is disabled while files are actively uploading", async () => {

@@ -32,6 +32,7 @@ export interface ChatConfig {
   enableFileUpload?: boolean;
   enableSlashCommands?: boolean;
   enableCommandPalette?: boolean;
+  enableSearch?: boolean;
   enableSlashFocusShortcut?: boolean;
   /**
    * Show the composer Resume/Retry control when the loaded session's `resumeState`
@@ -92,6 +93,7 @@ export const defaultStrings = {
   searchChats: "Search chats...",
   noConversationsYet: "No conversations yet",
   noMatchingChats: "No chats match your search.",
+  recentsEmptyDescription: "Conversations you start will appear here.",
   emptyStateHeading: "What would you like to work on today?",
   approvalTitle: "Approval required",
   approvalApprove: "Approve",

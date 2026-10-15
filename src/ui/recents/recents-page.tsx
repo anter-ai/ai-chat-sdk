@@ -9,9 +9,12 @@ import type { Session } from "../../headless/types/session";
 import { RecentSessionItem } from "../shared/recent-session-item";
 import { ConfirmDialog } from "../shared/confirm-dialog";
 
-interface RecentsPageProps {
+export interface RecentsPageProps {
   onSelectSession?: () => void;
   onNewConversation?: () => void;
+  headerBackground?: string;
+  emptyStateDescription?: string;
+  renderEmptyState?: () => React.ReactNode;
 }
 
 function formatRelativeDate(dateStr: string): string {
@@ -50,7 +53,13 @@ function getGroupLabel(dateStr: string): string {
 
 const GROUP_ORDER = ["Today", "Yesterday", "Previous 7 days", "Previous 30 days", "Older"];
 
-export function RecentsPage({ onSelectSession, onNewConversation }: RecentsPageProps) {
+export function RecentsPage({
+  onSelectSession,
+  onNewConversation,
+  headerBackground,
+  emptyStateDescription,
+  renderEmptyState,
+}: RecentsPageProps) {
   const { adapter, strings } = useChatContext();
   const { sessions, isLoading, deleteSession } = useConversationHistory();
   const { loadSession, switchSession, currentSessionId, clearMessages } = useChat();
@@ -117,7 +126,10 @@ export function RecentsPage({ onSelectSession, onNewConversation }: RecentsPageP
 
   return (
     <div className="ais-recents-page">
-      <div className="ais-recents-header">
+      <div
+        className="ais-recents-header"
+        style={headerBackground ? { background: headerBackground } : undefined}
+      >
         <h1 className="ais-recents-title">{strings?.recentsTitle ?? "Chats"}</h1>
         <div className="ais-recents-search-wrap">
           <Search size={15} className="ais-recents-search-icon" />
@@ -139,16 +151,25 @@ export function RecentsPage({ onSelectSession, onNewConversation }: RecentsPageP
           </div>
         )}
 
-        {!isLoading && filtered.length === 0 && (
-          <div className="ais-recents-empty">
-            <MessageCircle size={36} strokeWidth={1.4} />
-            <p>
-              {query
-                ? (strings?.noMatchingChats ?? "No chats match your search.")
-                : (strings?.noConversationsYet ?? "No conversations yet.")}
-            </p>
-          </div>
-        )}
+        {!isLoading &&
+          filtered.length === 0 &&
+          (renderEmptyState ? (
+            <div className="ais-recents-empty">{renderEmptyState()}</div>
+          ) : (
+            <div className="ais-recents-empty">
+              <MessageCircle size={36} strokeWidth={1.4} />
+              <p className="ais-recents-empty-title">
+                {query
+                  ? (strings?.noMatchingChats ?? "No chats match your search.")
+                  : (strings?.noConversationsYet ?? "No conversations yet.")}
+              </p>
+              {!query && (emptyStateDescription ?? strings?.recentsEmptyDescription) && (
+                <p className="ais-recents-empty-description">
+                  {emptyStateDescription ?? strings?.recentsEmptyDescription}
+                </p>
+              )}
+            </div>
+          ))}
 
         {!isLoading &&
           GROUP_ORDER.filter((label) => groups.has(label)).map((label) => (

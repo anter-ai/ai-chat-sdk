@@ -77,7 +77,7 @@ export function ChatSidebar({
   hideArtifactsLink = false,
   sidebarLinks = [],
 }: ChatSidebarProps) {
-  const { adapter, organizationId, currentSession, setCurrentSession } = useChatContext();
+  const { adapter, organizationId, currentSession, setCurrentSession, strings } = useChatContext();
   const { sessions, isLoading, refresh, deleteSession } = useConversationHistory();
   const { loadSession, currentSessionId, isStreaming, clearMessages, messages } = useChat();
   const [collapsed, setCollapsed] = useState(() => {
@@ -195,7 +195,7 @@ export function ChatSidebar({
     const items: SidebarNavItem[] = [
       {
         id: "new-chat",
-        label: "New Chat",
+        label: strings?.newChat ?? strings?.newConversation ?? "New Chat",
         icon: Plus,
         action: () => {
           onNewConversation?.();
@@ -212,7 +212,7 @@ export function ChatSidebar({
       },
       {
         id: "recents",
-        label: "Chats",
+        label: strings?.recentsTitle ?? "Chats",
         icon: MessageCircle,
         active: activeView === "recents",
         action: () => onViewChange?.("recents"),
@@ -320,7 +320,9 @@ export function ChatSidebar({
           className={`ais-sidebar-content-area ${recentsCollapsed ? "is-recents-collapsed" : ""}`}
         >
           <div className="ais-sidebar-section-header">
-            <div className="ais-sidebar-section-label">Recents</div>
+            <div className="ais-sidebar-section-label">
+              {strings?.recentsSectionTitle ?? "Recents"}
+            </div>
             <button
               className="ais-sidebar-section-toggle"
               onClick={() => setRecentsCollapsed((prev) => !prev)}
@@ -332,7 +334,9 @@ export function ChatSidebar({
           <div className="ais-sidebar-recents" role="list" aria-label="Recent conversations">
             {isLoading ? <p className="ais-sidebar-hint">Loading...</p> : null}
             {!isLoading && displaySessions.length === 0 ? (
-              <p className="ais-sidebar-hint">No conversations yet</p>
+              <p className="ais-sidebar-hint">
+                {strings?.noConversationsYet ?? "No conversations yet"}
+              </p>
             ) : null}
             {displaySessions.map((session) => (
               <RecentSessionItem

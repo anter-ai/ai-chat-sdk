@@ -49,6 +49,7 @@ interface ChatSidebarProps {
   onNewConversation?: () => void;
   isOpen?: boolean;
   onToggle?: () => void;
+  onClose?: () => void;
   className?: string;
   activeView?: SidebarView;
   onViewChange?: (view: SidebarView) => void;
@@ -67,6 +68,7 @@ export function ChatSidebar({
   onNewConversation,
   isOpen,
   onToggle,
+  onClose,
   className,
   activeView = "chat",
   onViewChange,
@@ -75,7 +77,7 @@ export function ChatSidebar({
   hideArtifactsLink = false,
   sidebarLinks = [],
 }: ChatSidebarProps) {
-  const { adapter, organizationId, currentSession, setCurrentSession } = useChatContext();
+  const { adapter, organizationId, currentSession, setCurrentSession, strings } = useChatContext();
   const { sessions, isLoading, refresh, deleteSession } = useConversationHistory();
   const { loadSession, switchSession, currentSessionId, isStreaming, clearMessages, messages } =
     useChat();
@@ -97,6 +99,14 @@ export function ChatSidebar({
   // of stomping their choice back to the pre-collapse value.
   const preAutoCollapseRef = React.useRef(false);
   const userToggledDuringArtifactRef = React.useRef(false);
+
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
+    } else if (isOpen && onToggle) {
+      onToggle();
+    }
+  };
 
   const displaySessions = useMemo(() => {
     const hasCurrent = sessions.some((s) => s.sessionId === currentSessionId);
@@ -186,7 +196,7 @@ export function ChatSidebar({
     const items: SidebarNavItem[] = [
       {
         id: "new-chat",
-        label: "New Chat",
+        label: strings?.newChat ?? strings?.newConversation ?? "New Chat",
         icon: Plus,
         action: () => {
           onNewConversation?.();
@@ -203,7 +213,7 @@ export function ChatSidebar({
       },
       {
         id: "recents",
-        label: "Chats",
+        label: strings?.recentsTitle ?? "Chats",
         icon: MessageCircle,
         active: activeView === "recents",
         action: () => onViewChange?.("recents"),
@@ -250,7 +260,7 @@ export function ChatSidebar({
         className={`ais-sidebar-nav-item ${item.active ? "is-active" : ""} ${collapsed ? "is-collapsed" : ""}`}
         onClick={() => {
           item.action?.();
-          if (isOpen && onToggle) onToggle(); // Close sidebar on mobile after action
+          handleClose();
         }}
         type="button"
         title={item.label}
@@ -311,7 +321,9 @@ export function ChatSidebar({
           className={`ais-sidebar-content-area ${recentsCollapsed ? "is-recents-collapsed" : ""}`}
         >
           <div className="ais-sidebar-section-header">
-            <div className="ais-sidebar-section-label">Recents</div>
+            <div className="ais-sidebar-section-label">
+              {strings?.recentsSectionTitle ?? "Recents"}
+            </div>
             <button
               className="ais-sidebar-section-toggle"
               onClick={() => setRecentsCollapsed((prev) => !prev)}
@@ -323,7 +335,9 @@ export function ChatSidebar({
           <div className="ais-sidebar-recents" role="list" aria-label="Recent conversations">
             {isLoading ? <p className="ais-sidebar-hint">Loading...</p> : null}
             {!isLoading && displaySessions.length === 0 ? (
-              <p className="ais-sidebar-hint">No conversations yet</p>
+              <p className="ais-sidebar-hint">
+                {strings?.noConversationsYet ?? "No conversations yet"}
+              </p>
             ) : null}
             {displaySessions.map((session) => (
               <RecentSessionItem
@@ -338,13 +352,16 @@ export function ChatSidebar({
                       const full = await adapter.loadSession(session.sessionId);
                       loadSession(full);
                     }
-                    if (isOpen && onToggle) onToggle();
+                    onViewChange?.("chat");
+                    handleClose();
                   } catch {
                     // Session no longer exists on the backend — refresh the
                     // list and fall back to an empty new-chat state.
                     void refresh();
                     clearMessages();
                     onNewConversation?.();
+                    onViewChange?.("chat");
+                    handleClose();
                   }
                 }}
                 onDelete={handleDeleteSession}

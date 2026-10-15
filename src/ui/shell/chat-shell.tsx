@@ -98,6 +98,19 @@ interface ChatShellProps {
   onSourceClick?: (source: MessageSource) => void;
   renderSourcePill?: (source: MessageSource, index: number) => React.ReactNode;
   renderCitationModal?: (source: MessageSource, onClose: () => void) => React.ReactNode;
+  /**
+   * The currently active main view. Supports controlled usage (`"chat"` | `"recents"`).
+   * When omitted, the view state is managed internally.
+   */
+  activeView?: SidebarView;
+  /**
+   * Initial view when uncontrolled. Defaults to `"chat"`.
+   */
+  initialActiveView?: SidebarView;
+  /**
+   * Callback fired whenever the active view changes between `"chat"` and `"recents"`.
+   */
+  onViewChange?: (view: SidebarView) => void;
 }
 
 export function ChatShell({
@@ -123,6 +136,9 @@ export function ChatShell({
   onSourceClick,
   renderSourcePill,
   renderCitationModal,
+  activeView,
+  initialActiveView,
+  onViewChange,
 }: ChatShellProps) {
   const { config } = useChatContext();
   const artifactsCtx = useArtifacts();
@@ -160,6 +176,9 @@ export function ChatShell({
         onSourceClick={onSourceClick}
         renderSourcePill={renderSourcePill}
         renderCitationModal={renderCitationModal}
+        activeView={activeView}
+        initialActiveView={initialActiveView}
+        onViewChange={onViewChange}
       />
     </ChatStateProvider>
   );
@@ -199,6 +218,9 @@ function ChatShellContent({
   onSourceClick,
   renderSourcePill,
   renderCitationModal,
+  activeView: propActiveView,
+  initialActiveView,
+  onViewChange,
 }: ChatShellContentProps) {
   const {
     sendMessage,
@@ -400,16 +422,23 @@ function ChatShellContent({
     }
   }, []);
 
-  const [activeView, setActiveView] = useState<SidebarView>("chat");
+  const [internalActiveView, setInternalActiveView] = useState<SidebarView>(
+    initialActiveView ?? propActiveView ?? "chat",
+  );
+  const activeView = propActiveView !== undefined ? propActiveView : internalActiveView;
 
-  function handleViewChange(view: SidebarView) {
-    setActiveView(view);
-    setSidebarOpen(false);
-  }
+  const handleViewChange = React.useCallback(
+    (view: SidebarView) => {
+      setInternalActiveView(view);
+      onViewChange?.(view);
+      setSidebarOpen(false);
+    },
+    [onViewChange],
+  );
 
   function handleNewConversation() {
     clearMessages();
-    setActiveView("chat");
+    handleViewChange("chat");
   }
 
   const sessionTitle = currentSessionTitle?.trim() || "New session";
@@ -448,6 +477,7 @@ function ChatShellContent({
         isOpen={isOverlayViewport ? sidebarOpen : false}
         onNewConversation={handleNewConversation}
         onToggle={() => setSidebarOpen((prev) => !prev)}
+        onClose={() => setSidebarOpen(false)}
         onViewChange={handleViewChange}
         artifactPanelOpen={artifactsCtx.panelState.isOpen}
         onToggleArtifacts={
@@ -540,7 +570,7 @@ function ChatShellContent({
                   )}
                   {activeView === "recents" ? (
                     <RecentsPage
-                      onSelectSession={() => setActiveView("chat")}
+                      onSelectSession={() => handleViewChange("chat")}
                       onNewConversation={handleNewConversation}
                     />
                   ) : (

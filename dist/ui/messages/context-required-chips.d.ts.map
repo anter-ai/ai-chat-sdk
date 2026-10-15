@@ -1,0 +1,1 @@
+{"version":3,"file":"context-required-chips.d.ts","sourceRoot":"","sources":["../../../src/ui/messages/context-required-chips.tsx"],"names":[],"mappings":"AAGA,OAAO,KAAK,EAAE,sBAAsB,EAAE,MAAM,2BAA2B,CAAC;AAExE,UAAU,yBAAyB;IACjC,eAAe,EAAE,sBAAsB,CAAC;IACxC,QAAQ,EAAE,CAAC,KAAK,EAAE,MAAM,KAAK,IAAI,CAAC;CACnC;AAED,wBAAgB,oBAAoB,CAAC,EAAE,eAAe,EAAE,QAAQ,EAAE,EAAE,yBAAyB,2CAe5F"}

@@ -1,0 +1,1 @@
+{"version":3,"file":"record-chip.d.ts","sourceRoot":"","sources":["../../../src/ui/messages/record-chip.tsx"],"names":[],"mappings":"AAIA,OAAO,KAAK,EAAE,SAAS,EAAE,MAAM,mCAAmC,CAAC;AAMnE,UAAU,eAAe;IACvB,MAAM,EAAE,SAAS,CAAC;IAClB,OAAO,CAAC,EAAE,CAAC,MAAM,EAAE,SAAS,KAAK,IAAI,CAAC;CACvC;AAED,wBAAgB,UAAU,CAAC,EAAE,MAAM,EAAE,OAAO,EAAE,EAAE,eAAe,2CAoB9D"}

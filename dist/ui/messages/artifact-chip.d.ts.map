@@ -1,0 +1,1 @@
+{"version":3,"file":"artifact-chip.d.ts","sourceRoot":"","sources":["../../../src/ui/messages/artifact-chip.tsx"],"names":[],"mappings":"AAIA,OAAO,KAAK,EAAE,QAAQ,EAAE,MAAM,+BAA+B,CAAC;AAE9D,UAAU,iBAAiB;IACzB,QAAQ,CAAC,EAAE,QAAQ,CAAC;IACpB,OAAO,EAAE,OAAO,CAAC;IACjB,OAAO,EAAE,MAAM,IAAI,CAAC;CACrB;AAED,wBAAgB,YAAY,CAAC,EAAE,QAAQ,EAAE,OAAO,EAAE,OAAO,EAAE,EAAE,iBAAiB,kDAqB7E"}

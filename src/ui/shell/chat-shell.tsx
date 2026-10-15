@@ -111,6 +111,18 @@ interface ChatShellProps {
    * Callback fired whenever the active view changes between `"chat"` and `"recents"`.
    */
   onViewChange?: (view: SidebarView) => void;
+  /**
+   * Optional custom background for the Recents / History page header.
+   */
+  recentsHeaderBackground?: string;
+  /**
+   * Optional secondary description displayed in the Recents empty state.
+   */
+  recentsEmptyStateDescription?: string;
+  /**
+   * Optional custom render function for the Recents empty state.
+   */
+  renderRecentsEmptyState?: () => React.ReactNode;
 }
 
 export function ChatShell({
@@ -139,6 +151,9 @@ export function ChatShell({
   activeView,
   initialActiveView,
   onViewChange,
+  recentsHeaderBackground,
+  recentsEmptyStateDescription,
+  renderRecentsEmptyState,
 }: ChatShellProps) {
   const { config } = useChatContext();
   const artifactsCtx = useArtifacts();
@@ -179,6 +194,9 @@ export function ChatShell({
         activeView={activeView}
         initialActiveView={initialActiveView}
         onViewChange={onViewChange}
+        recentsHeaderBackground={recentsHeaderBackground}
+        recentsEmptyStateDescription={recentsEmptyStateDescription}
+        renderRecentsEmptyState={renderRecentsEmptyState}
       />
     </ChatStateProvider>
   );
@@ -221,6 +239,9 @@ function ChatShellContent({
   activeView: propActiveView,
   initialActiveView,
   onViewChange,
+  recentsHeaderBackground,
+  recentsEmptyStateDescription,
+  renderRecentsEmptyState,
 }: ChatShellContentProps) {
   const {
     sendMessage,
@@ -481,13 +502,15 @@ function ChatShellContent({
         onViewChange={handleViewChange}
         artifactPanelOpen={artifactsCtx.panelState.isOpen}
         onToggleArtifacts={
-          onArtifactsClick ||
-          (() =>
-            artifactsCtx.panelState.isOpen
-              ? artifactsCtx.closePanel()
-              : artifactsCtx.openArtifact(Array.from(artifactsCtx.artifacts.keys())[0] ?? ""))
+          config.enableArtifacts !== false
+            ? onArtifactsClick ||
+              (() =>
+                artifactsCtx.panelState.isOpen
+                  ? artifactsCtx.closePanel()
+                  : artifactsCtx.openArtifact(Array.from(artifactsCtx.artifacts.keys())[0] ?? ""))
+            : undefined
         }
-        hideArtifactsLink={hideArtifactsLink}
+        hideArtifactsLink={hideArtifactsLink || config.enableArtifacts === false}
         sidebarLinks={sidebarLinks}
       />
 
@@ -511,10 +534,16 @@ function ChatShellContent({
               sessionTitle={sessionTitle}
               artifactsCount={artifactsCtx.artifacts.size}
               artifactsPanelOpen={artifactsCtx.panelState.isOpen}
-              onToggleArtifacts={() =>
-                artifactsCtx.panelState.isOpen
-                  ? artifactsCtx.closePanel()
-                  : artifactsCtx.openArtifact(Array.from(artifactsCtx.artifacts.keys())[0] ?? "")
+              enableArtifacts={config.enableArtifacts !== false}
+              onToggleArtifacts={
+                config.enableArtifacts !== false
+                  ? () =>
+                      artifactsCtx.panelState.isOpen
+                        ? artifactsCtx.closePanel()
+                        : artifactsCtx.openArtifact(
+                            Array.from(artifactsCtx.artifacts.keys())[0] ?? "",
+                          )
+                  : undefined
               }
               filesCount={enableFileUpload ? filesCtx.files.length : 0}
               onToggleFiles={
@@ -572,6 +601,9 @@ function ChatShellContent({
                     <RecentsPage
                       onSelectSession={() => handleViewChange("chat")}
                       onNewConversation={handleNewConversation}
+                      headerBackground={recentsHeaderBackground}
+                      emptyStateDescription={recentsEmptyStateDescription}
+                      renderEmptyState={renderRecentsEmptyState}
                     />
                   ) : (
                     <>

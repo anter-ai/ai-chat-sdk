@@ -38,6 +38,10 @@
   --ais-floating-panel-bg: var(--chat-bg);
   --ais-floating-panel-border: var(--chat-border);
   --ais-floating-panel-card-bg: color-mix(in oklab, var(--chat-bg) 96%, var(--message-ai-text) 4%);
+
+  /* Message blur and recents header tokens */
+  --ais-bg-main: var(--chat-bg);
+  --ais-recents-header-bg: transparent;
 }
 
 /* Dark mode overrides:

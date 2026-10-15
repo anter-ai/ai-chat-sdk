@@ -4,7 +4,7 @@ import { ChatMessages } from "./chat-messages";
 import type { MessageSource } from "../../headless/types/chat";
 import "@testing-library/jest-dom";
 
-const mockMessages = [
+let mockMessages = [
   {
     id: "msg-1",
     role: "assistant",
@@ -12,6 +12,10 @@ const mockMessages = [
     sources: [{ id: "src-1", title: "Benefits Policy" }],
   },
 ];
+
+let mockIsStreaming = false;
+let mockIsAtBottom = true;
+const mockScrollToBottom = jest.fn();
 
 let capturedChatMessageProps: any = null;
 
@@ -28,7 +32,7 @@ jest.mock("../../headless/hooks/use-chat", () => ({
     retryLastMessage: jest.fn(),
     retryMessage: jest.fn(),
     sendMessage: jest.fn(),
-    isStreaming: false,
+    isStreaming: mockIsStreaming,
     canResolveToolApprovals: false,
     resolveToolApproval: jest.fn(),
   }),
@@ -37,8 +41,8 @@ jest.mock("../../headless/hooks/use-chat", () => ({
 jest.mock("../../headless/hooks/use-sticky-bottom", () => ({
   useStickyBottom: () => ({
     anchorRef: { current: null },
-    isAtBottom: true,
-    scrollToBottom: jest.fn(),
+    isAtBottom: mockIsAtBottom,
+    scrollToBottom: mockScrollToBottom,
   }),
 }));
 
@@ -81,5 +85,66 @@ describe("ChatMessages", () => {
     expect(capturedChatMessageProps.onSourceClick).toBe(onSourceClick);
     expect(capturedChatMessageProps.renderSourcePill).toBe(renderSourcePill);
     expect(capturedChatMessageProps.renderCitationModal).toBe(renderCitationModal);
+  });
+
+  it("scrolls to bottom with 'auto' during streaming when new content arrives and user is at bottom", () => {
+    mockIsStreaming = true;
+    mockIsAtBottom = true;
+    mockScrollToBottom.mockClear();
+
+    const { rerender } = render(
+      <ChatMessages artifactsCtx={mockArtifactsCtx} sourcesCtx={mockSourcesCtx} />,
+    );
+
+    mockMessages = [
+      {
+        id: "msg-1",
+        role: "assistant",
+        content: "Here is information [1] with more streamed tokens...",
+        sources: [{ id: "src-1", title: "Benefits Policy" }],
+      },
+    ];
+
+    rerender(<ChatMessages artifactsCtx={mockArtifactsCtx} sourcesCtx={mockSourcesCtx} />);
+
+    expect(mockScrollToBottom).toHaveBeenCalledWith("auto");
+  });
+
+  it("scrolls to bottom with 'smooth' when streaming settles", () => {
+    mockIsStreaming = true;
+    mockIsAtBottom = true;
+    mockScrollToBottom.mockClear();
+
+    const { rerender } = render(
+      <ChatMessages artifactsCtx={mockArtifactsCtx} sourcesCtx={mockSourcesCtx} />,
+    );
+
+    mockIsStreaming = false;
+    rerender(<ChatMessages artifactsCtx={mockArtifactsCtx} sourcesCtx={mockSourcesCtx} />);
+
+    expect(mockScrollToBottom).toHaveBeenCalledWith("smooth");
+  });
+
+  it("does not auto-scroll if user has scrolled up away from bottom", () => {
+    mockIsStreaming = true;
+    mockIsAtBottom = false;
+    mockScrollToBottom.mockClear();
+
+    const { rerender } = render(
+      <ChatMessages artifactsCtx={mockArtifactsCtx} sourcesCtx={mockSourcesCtx} />,
+    );
+
+    mockMessages = [
+      {
+        id: "msg-1",
+        role: "assistant",
+        content: "Another streaming update",
+        sources: [],
+      },
+    ];
+
+    rerender(<ChatMessages artifactsCtx={mockArtifactsCtx} sourcesCtx={mockSourcesCtx} />);
+
+    expect(mockScrollToBottom).not.toHaveBeenCalled();
   });
 });

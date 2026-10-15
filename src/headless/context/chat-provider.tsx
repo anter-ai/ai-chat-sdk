@@ -210,6 +210,7 @@ export function ChatProvider({
     enableFileUpload: config.enableFileUpload ?? false,
     enableSlashCommands: config.enableSlashCommands ?? true,
     enableCommandPalette: config.enableCommandPalette ?? true,
+    enableSearch: config.enableSearch ?? true,
     enableSlashFocusShortcut: config.enableSlashFocusShortcut ?? true,
     enableResumeRetry: config.enableResumeRetry ?? true,
     enableTools: config.enableTools ?? true,

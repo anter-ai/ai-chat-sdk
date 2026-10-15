@@ -113,21 +113,34 @@ export function ReasoningBlock({ steps, plan, isStreaming, elapsedMs }: Reasonin
     });
 
   return (
-    <div className="ais-reasoning-root">
-      {/* Header bar */}
+    <div className="ais-reasoning-block" aria-live="polite">
+      {/* Toggle header — whole row is clickable */}
       <button
         type="button"
         onClick={() => setExpanded((prev) => !prev)}
-        className="ais-reasoning-header"
+        className={cn("ais-reasoning-toggle", isStreaming && "ais-reasoning-toggle--active")}
         aria-expanded={expanded}
       >
-        <SparkleIcon spinning={isStreaming} className="ais-reasoning-sparkle" />
-        <span className="ais-reasoning-title">{headerLabel}</span>
-        {seconds !== null && <span className="ais-reasoning-seconds">Thought for {seconds}s</span>}
-        <ChevronDown
-          className={cn("ais-reasoning-chevron", !expanded && "ais-reasoning-chevron--collapsed")}
-          aria-hidden
-        />
+        <div className="ais-reasoning-headrow">
+          <SparkleIcon
+            spinning={isStreaming}
+            className={isStreaming ? "ais-reasoning-icon" : "ais-reasoning-icon--idle"}
+          />
+
+          <span
+            key={headerLabel}
+            className={cn(
+              "ais-reasoning-label ais-reasoning-textfade",
+              isStreaming && "ais-reasoning-label--active",
+            )}
+          >
+            {headerLabel}
+          </span>
+
+          {seconds !== null && <span className="ais-reasoning-seconds">{seconds}s</span>}
+        </div>
+
+        {isStreaming && <div className="ais-reasoning-sweep" aria-hidden />}
       </button>
 
       {/* Expanded content */}

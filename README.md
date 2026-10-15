@@ -758,12 +758,13 @@ const STARTER_CARDS: StarterCard[] = [
 />;
 ```
 
-| Prop            | Type                        | Default                                   | Description                                   |
-| --------------- | --------------------------- | ----------------------------------------- | --------------------------------------------- |
-| `heading`       | `string`                    | `"What would you like to work on today?"` | Main heading (rendered with a gradient style) |
-| `subheading`    | `string`                    | —                                         | Optional secondary line below the heading     |
-| `starterCards`  | `StarterCard[]`             | `[]`                                      | Grid of clickable prompt suggestion cards     |
-| `onSendMessage` | `(message: string) => void` | —                                         | Called with the card's `prompt` when clicked  |
+| Prop            | Type                        | Default                                   | Description                                                         |
+| --------------- | --------------------------- | ----------------------------------------- | ------------------------------------------------------------------- |
+| `heading`       | `string`                    | `"What would you like to work on today?"` | Main heading (rendered with a gradient style)                       |
+| `subheading`    | `string`                    | —                                         | Optional secondary line below the heading                           |
+| `starterCards`  | `StarterCard[]`             | `[]`                                      | Grid of clickable prompt suggestion cards                           |
+| `compact`       | `boolean`                   | `false`                                   | Optional compact layout variant for small viewports / mobile shells |
+| `onSendMessage` | `(message: string) => void` | —                                         | Called with the card's `prompt` when clicked                        |
 
 **`StarterCard` shape:**
 

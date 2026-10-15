@@ -77,4 +77,12 @@ describe("ChatSidebar custom links", () => {
       expect(onViewChange).toHaveBeenCalledWith("chat");
     });
   });
+
+  it("invokes onClose when a rail button is clicked while open on mobile", () => {
+    const onClose = jest.fn();
+    render(<ChatSidebar isOpen={true} onClose={onClose} />);
+    const newChatBtn = screen.getByRole("button", { name: "New Chat" });
+    fireEvent.click(newChatBtn);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });

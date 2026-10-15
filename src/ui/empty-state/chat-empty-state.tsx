@@ -17,6 +17,7 @@ interface ChatEmptyStateProps {
   starterCards?: StarterCard[];
   heading?: string;
   subheading?: string;
+  compact?: boolean;
 }
 
 export function ChatEmptyState({
@@ -24,6 +25,7 @@ export function ChatEmptyState({
   starterCards = [],
   heading,
   subheading,
+  compact = false,
 }: ChatEmptyStateProps) {
   let enableSlashCommands = true;
   let resolvedHeading = heading ?? "What would you like to work on today?";
@@ -43,7 +45,7 @@ export function ChatEmptyState({
   }
 
   return (
-    <div className="ais-empty-state">
+    <div className={`ais-empty-state ${compact ? "is-compact" : ""}`.trim()}>
       <div className="ais-empty-state-inner">
         <div className="ais-empty-prompt-header">
           <h2 className="ais-empty-heading ais-empty-heading--gradient">{resolvedHeading}</h2>

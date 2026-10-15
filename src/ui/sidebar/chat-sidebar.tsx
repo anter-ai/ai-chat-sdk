@@ -49,6 +49,7 @@ interface ChatSidebarProps {
   onNewConversation?: () => void;
   isOpen?: boolean;
   onToggle?: () => void;
+  onClose?: () => void;
   className?: string;
   activeView?: SidebarView;
   onViewChange?: (view: SidebarView) => void;
@@ -67,6 +68,7 @@ export function ChatSidebar({
   onNewConversation,
   isOpen,
   onToggle,
+  onClose,
   className,
   activeView = "chat",
   onViewChange,
@@ -96,6 +98,14 @@ export function ChatSidebar({
   // of stomping their choice back to the pre-collapse value.
   const preAutoCollapseRef = React.useRef(false);
   const userToggledDuringArtifactRef = React.useRef(false);
+
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
+    } else if (isOpen && onToggle) {
+      onToggle();
+    }
+  };
 
   const displaySessions = useMemo(() => {
     const hasCurrent = sessions.some((s) => s.sessionId === currentSessionId);
@@ -249,7 +259,7 @@ export function ChatSidebar({
         className={`ais-sidebar-nav-item ${item.active ? "is-active" : ""} ${collapsed ? "is-collapsed" : ""}`}
         onClick={() => {
           item.action?.();
-          if (isOpen && onToggle) onToggle(); // Close sidebar on mobile after action
+          handleClose();
         }}
         type="button"
         title={item.label}
@@ -338,7 +348,7 @@ export function ChatSidebar({
                     const full = await adapter.loadSession(session.sessionId);
                     loadSession(full);
                     onViewChange?.("chat");
-                    if (isOpen && onToggle) onToggle();
+                    handleClose();
                   } catch {
                     // Session no longer exists on the backend — refresh the
                     // list and fall back to an empty new-chat state.
@@ -346,7 +356,7 @@ export function ChatSidebar({
                     clearMessages();
                     onNewConversation?.();
                     onViewChange?.("chat");
-                    if (isOpen && onToggle) onToggle();
+                    handleClose();
                   }
                 }}
                 onDelete={handleDeleteSession}

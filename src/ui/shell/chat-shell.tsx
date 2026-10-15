@@ -464,6 +464,7 @@ function ChatShellContent({
         isOpen={isOverlayViewport ? sidebarOpen : false}
         onNewConversation={handleNewConversation}
         onToggle={() => setSidebarOpen((prev) => !prev)}
+        onClose={() => setSidebarOpen(false)}
         onViewChange={handleViewChange}
         artifactPanelOpen={artifactsCtx.panelState.isOpen}
         onToggleArtifacts={

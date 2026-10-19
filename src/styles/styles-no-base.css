@@ -2256,6 +2256,11 @@
   outline: none;
 }
 
+.ais-ap-tab-content[data-state="inactive"],
+.ais-ap-tab-content[hidden] {
+  display: none !important;
+}
+
 /* Preview */
 .ais-ap-preview {
   background: var(--background, var(--ais-ap-surface));

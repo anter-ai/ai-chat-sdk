@@ -6,6 +6,7 @@ This directory contains reference integration patterns for `@anter/ai-chat-sdk`.
 
 | Example Pattern                   | Description                                                                      | Link                                                                                                      |
 | --------------------------------- | -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **Runnable demo**                 | Private Vite app. `pnpm --filter @anter/ai-chat-sdk-demo dev`                    | [`demo/README.md`](./demo/README.md)                                                                      |
 | **Option A: Standalone ChatView** | Full chat view with messages and composer without sidebar menu or shell chrome   | [`standalone-chat-view.tsx`](./standalone-chat-view.tsx)                                                  |
 | **Option B: Minimal Custom Chat** | Direct composition of `ChatMessages` & `ChatComposer` for custom minimal layouts | [`minimal-custom-chat.tsx`](./minimal-custom-chat.tsx)                                                    |
 | **Reference Adapter**             | Standard reference adapter implementation using Fetch & EventSource streams      | [`packages/anter-adapter`](../packages/anter-adapter/README.md)                                           |

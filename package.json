@@ -69,7 +69,7 @@
     "check-lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "check-format": "prettier --check .",
-    "check-all": "pnpm check-format && pnpm check-lint && pnpm check-types && pnpm build",
+    "check-all": "pnpm check-format && pnpm check-lint && pnpm check-types && pnpm build && pnpm --filter @anter/ai-chat-sdk-demo check",
     "prepare:git-dist": "node ./scripts/prepare-git-dist.mjs",
     "deploy:git-dist": "node ./scripts/deploy-git-dist.mjs",
     "publish:dist": "pnpm check-all && pnpm test && pnpm prepare:git-dist && pnpm deploy:git-dist && git push -u origin dist --force-with-lease"

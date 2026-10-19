@@ -3,7 +3,7 @@ module.exports = {
   preset: "ts-jest/presets/default-esm",
   testEnvironment: "jsdom",
   setupFiles: ["<rootDir>/jest.setup.cjs"],
-  roots: ["<rootDir>/src"],
+  roots: ["<rootDir>/src", "<rootDir>/examples/demo"],
   modulePaths: ["<rootDir>"],
   moduleDirectories: ["node_modules", "<rootDir>", "<rootDir>/src"],
   extensionsToTreatAsEsm: [".ts", ".tsx"],

@@ -1,6 +1,8 @@
 packages:
   - "packages/*"
+  - "examples/demo"
 
 allowBuilds:
+  "@parcel/watcher": true
   esbuild: false
   unrs-resolver: false

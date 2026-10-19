@@ -5,7 +5,7 @@
 
 An industry-agnostic, embeddable AI chat SDK for React applications. Drop a fully-featured chat UI into any product — regardless of domain — by wiring up your own backend through a simple adapter interface.
 
-> ⚡ **See It Live in Action:** Want to test real-time streaming responses, artifact viewports, and slash commands before installing? **[Visit anter.ai to try the live demo →](https://anter.ai)**
+> ⚡ **See It Live in Action:** Try the local demo (`pnpm --filter @anter/ai-chat-sdk-demo dev` → `http://localhost:5173`) or **[visit anter.ai to try the live online demo →](https://anter.ai)**
 
 ---
 
@@ -1870,10 +1870,15 @@ See the [`@anter/anter-adapter` README](../packages/anter-adapter/README.md) for
 
 ## Development
 
+### Run Local Demo
+
+```bash
+pnpm --filter @anter/ai-chat-sdk-demo dev   # Start Vite dev server on http://localhost:5173
+```
+
 ### Build
 
 ```bash
-cd packages/ai-chat-sdk
 pnpm build       # Production build (clean → tsup → tsc declarations → copy CSS)
 pnpm dev         # Watch mode via tsup
 ```

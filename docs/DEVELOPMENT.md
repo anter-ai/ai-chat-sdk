@@ -27,16 +27,17 @@ pnpm install
 
 ## Available Scripts
 
-| Script            | Command                                                                  | Purpose                                          |
-| ----------------- | ------------------------------------------------------------------------ | ------------------------------------------------ |
-| `pnpm dev`        | `tsup --watch`                                                           | Build SDK in watch mode during local development |
-| `pnpm build`      | `tsup && tsc -p tsconfig.build.json ...`                                 | Production build targeting `dist/`               |
-| `pnpm test`       | `jest --config ./jest.config.cjs`                                        | Run Unit and Component test suites               |
-| `pnpm test:watch` | `jest --config ./jest.config.cjs --watch`                                | Interactive Jest watcher                         |
-| `pnpm type-check` | `tsc --noEmit`                                                           | Run TypeScript compiler type checking            |
-| `pnpm lint`       | `eslint .`                                                               | Run ESLint check                                 |
-| `pnpm format`     | `prettier --write .`                                                     | Format all source files with Prettier            |
-| `pnpm check-all`  | `pnpm check-format && pnpm check-lint && pnpm check-types && pnpm build` | Complete CI verification suite                   |
+| Script                                      | Command                                                                                                                 | Purpose                                                      |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `pnpm dev`                                  | `tsup --watch`                                                                                                          | Build SDK in watch mode during local development             |
+| `pnpm build`                                | `tsup && tsc -p tsconfig.build.json ...`                                                                                | Production build targeting `dist/`                           |
+| `pnpm test`                                 | `jest --config ./jest.config.cjs`                                                                                       | Run Unit and Component test suites                           |
+| `pnpm test:watch`                           | `jest --config ./jest.config.cjs --watch`                                                                               | Interactive Jest watcher                                     |
+| `pnpm type-check`                           | `tsc --noEmit`                                                                                                          | Run TypeScript compiler type checking                        |
+| `pnpm lint`                                 | `eslint .`                                                                                                              | Run ESLint check                                             |
+| `pnpm format`                               | `prettier --write .`                                                                                                    | Format all source files with Prettier                        |
+| `pnpm check-all`                            | `pnpm check-format && pnpm check-lint && pnpm check-types && pnpm build && pnpm --filter @anter/ai-chat-sdk-demo check` | Complete CI verification suite, including the demo typecheck |
+| `pnpm --filter @anter/ai-chat-sdk-demo dev` | `vite` in `examples/demo`                                                                                               | Run the generic chat demo against SDK source                 |
 
 ---
 

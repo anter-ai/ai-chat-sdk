@@ -16,17 +16,22 @@ This document provides instructions and quick reference context for AI coding as
 
 ## Quick Reference Commands
 
-| Purpose                                           | Command           |
-| ------------------------------------------------- | ----------------- |
-| **Install Dependencies**                          | `pnpm install`    |
-| **Development Build (Watch Mode)**                | `pnpm dev`        |
-| **Production Build**                              | `pnpm build`      |
-| **Run Unit Tests**                                | `pnpm test`       |
-| **Run Tests (Watch Mode)**                        | `pnpm test:watch` |
-| **Type Check**                                    | `pnpm type-check` |
-| **Linting**                                       | `pnpm check-lint` |
-| **Format Code**                                   | `pnpm format`     |
-| **Full CI Suite (Format + Lint + Types + Build)** | `pnpm check-all`  |
+| Purpose                                           | Command                  |
+| ------------------------------------------------- | ------------------------ |
+| **Install Dependencies**                          | `pnpm install`           |
+| **Development Build (Watch Mode)**                | `pnpm dev`               |
+| **Production Build**                              | `pnpm build`             |
+| **Run Unit Tests**                                | `pnpm test`              |
+| **Run Tests (Watch Mode)**                        | `pnpm test:watch`        |
+| **Type Check**                                    | `pnpm type-check`        |
+| **Linting**                                       | `pnpm check-lint`        |
+| **Format Code**                                   | `pnpm format`            |
+| **Full CI Suite (Format + Lint + Types + Build)** | `pnpm check-all`         |
+| **Publish git `dist` (local)**                    | `pnpm publish:dist`      |
+| **Publish git `dist-beta` (local)**               | `pnpm publish:dist-beta` |
+
+> Git snapshots: prefer Actions → **Publish dist** (`workflow_dispatch` only; channel `dist` or
+> `dist-beta`). `publish:dist-beta` must not update `origin/dist`.
 
 ---
 

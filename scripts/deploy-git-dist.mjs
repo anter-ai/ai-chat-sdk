@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 // Creates a clean orphan commit in a temporary repository containing the prebuilt snapshot
-// staged in .git-dist, then fetches it as the local `dist` branch.
+// staged in .git-dist, then fetches it as the specified local branch.
+//
+// Usage: node ./scripts/deploy-git-dist.mjs [branch]
+//   branch: optional, must be "dist" or "dist-beta". Defaults to "dist".
+//   Any other value exits non-zero before touching git.
 
 import { execFileSync } from "node:child_process";
 import { cpSync, mkdtempSync, rmSync, existsSync } from "node:fs";
@@ -8,8 +12,19 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+const ALLOWED_BRANCHES = ["dist", "dist-beta"];
+
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const distDir = join(packageRoot, ".git-dist");
+
+// Parse and validate branch argument
+const branch = process.argv[2] ?? "dist";
+
+if (!ALLOWED_BRANCHES.includes(branch)) {
+  console.error(`Invalid branch: "${branch}". Must be one of: ${ALLOWED_BRANCHES.join(", ")}.`);
+  console.error("This safety check prevents accidental writes to source branches.");
+  process.exit(1);
+}
 
 if (!existsSync(distDir)) {
   console.error(
@@ -49,7 +64,7 @@ try {
     cpSync(distDir, distTmp, { recursive: true });
 
     // 5. Initialize temp git repo and configure it
-    runGit(["init", "-b", "dist", "-q"], distTmp);
+    runGit(["init", "-b", branch, "-q"], distTmp);
     if (userName) {
       runGit(["config", "user.name", userName], distTmp);
     }
@@ -62,9 +77,9 @@ try {
     runGit(["commit", "-m", `dist: ai-chat-sdk @ ${shortSha}`, "-q"], distTmp);
 
     // 7. Fetch the orphan branch back to the main repository
-    runGit(["fetch", distTmp, "+dist:dist"]);
+    runGit(["fetch", distTmp, `+${branch}:${branch}`]);
 
-    console.log(`Successfully updated local dist branch to commit @ ${shortSha}`);
+    console.log(`Successfully updated local ${branch} branch to commit @ ${shortSha}`);
   } finally {
     // 8. Clean up temporary directory
     rmSync(distTmp, { recursive: true, force: true });

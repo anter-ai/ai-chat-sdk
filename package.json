@@ -72,7 +72,9 @@
     "check-all": "pnpm check-format && pnpm check-lint && pnpm check-types && pnpm build && pnpm --filter @anter/ai-chat-sdk-demo check",
     "prepare:git-dist": "node ./scripts/prepare-git-dist.mjs",
     "deploy:git-dist": "node ./scripts/deploy-git-dist.mjs",
-    "publish:dist": "pnpm check-all && pnpm test && pnpm prepare:git-dist && pnpm deploy:git-dist && git push -u origin dist --force-with-lease"
+    "deploy:git-dist-beta": "node ./scripts/deploy-git-dist.mjs dist-beta",
+    "publish:dist": "pnpm check-all && pnpm test && pnpm prepare:git-dist && pnpm deploy:git-dist && git push -u origin dist --force-with-lease",
+    "publish:dist-beta": "pnpm check-all && pnpm test && pnpm prepare:git-dist && pnpm deploy:git-dist-beta && node ./scripts/push-git-dist.mjs dist-beta"
   },
   "peerDependencies": {
     "react": "^19.0.0",

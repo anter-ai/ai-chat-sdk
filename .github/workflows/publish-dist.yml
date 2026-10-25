@@ -1,0 +1,76 @@
+name: Publish dist
+
+# Manual orphan-branch snapshots for git consumers. Pick channel when dispatching:
+#   - dist      → production (`#dist`)
+#   - dist-beta → trial (`#dist-beta`); never updates origin/dist
+# No push/tag triggers — publish only when you run this workflow from GitHub Actions.
+# npm publish stays in publish.yml.
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "Orphan branch to publish"
+        required: true
+        type: choice
+        options:
+          - dist
+          - dist-beta
+        default: dist
+
+concurrency:
+  group: publish-dist-${{ inputs.channel }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish-dist:
+    name: Publish ${{ inputs.channel }} snapshot
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Full verification gate
+        run: |
+          pnpm check-all
+          pnpm test
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Build and deploy snapshot
+        run: |
+          pnpm build
+          pnpm prepare:git-dist
+          pnpm deploy:git-dist ${{ inputs.channel }}
+
+      - name: Push dist
+        if: inputs.channel == 'dist'
+        run: |
+          git fetch origin dist || true
+          if git rev-parse --verify origin/dist >/dev/null 2>&1; then
+            expected="$(git rev-parse origin/dist)"
+            git push --force-with-lease=refs/heads/dist:"$expected" origin dist
+          else
+            git push -u origin dist
+          fi
+
+      - name: Push dist-beta
+        if: inputs.channel == 'dist-beta'
+        run: node ./scripts/push-git-dist.mjs dist-beta

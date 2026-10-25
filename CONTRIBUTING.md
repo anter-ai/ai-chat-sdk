@@ -246,8 +246,23 @@ what makes the branch installable at all: the source manifest carries a `prepare
 rebuilds from `src/`, and pnpm runs `prepare` on every git dependency — on a branch with no
 `src/` and no devDependencies, that hook would fail every consumer's install.
 
-To cut a new snapshot after a change, run the full gate, build, stage, import, and push in one
-command:
+### Publish from GitHub Actions (preferred)
+
+[`.github/workflows/publish-dist.yml`](.github/workflows/publish-dist.yml) is **manual only**
+(`workflow_dispatch`). It does not run on push. From the Actions tab, run **Publish dist**,
+pick the branch/ref to build from (usually `main`), and choose a channel:
+
+| Channel     | Updates            | Consumer install ref |
+| ----------- | ------------------ | -------------------- |
+| `dist`      | `origin/dist`      | `#dist`              |
+| `dist-beta` | `origin/dist-beta` | `#dist-beta`         |
+
+`dist-beta` never updates `origin/dist`. Promote to production by running the workflow again
+with channel `dist` from the same source revision (or locally with `pnpm publish:dist`).
+
+### Publish locally
+
+To cut a production snapshot after a change:
 
 ```bash
 pnpm publish:dist
@@ -267,6 +282,23 @@ pnpm deploy:git-dist    # imports the clean orphan commit
 git push -u origin dist --force-with-lease
 ```
 
+### Beta snapshots
+
+A second orphan branch, `dist-beta`, provides a trial channel before promotion:
+
+```json
+"@anter/ai-chat-sdk": "git+https://github.com/anter-ai/ai-chat-sdk.git#dist-beta"
+```
+
+```bash
+pnpm publish:dist-beta
+```
+
+Same gate and build chain as `publish:dist`, then deploys to local `dist-beta` and pushes it
+via `scripts/push-git-dist.mjs`. **`publish:dist-beta` never updates `origin/dist`.**
+
+Pin an immutable beta SHA with `git rev-parse dist-beta` when you need a frozen trial install.
+
 `prepare:git-dist` refuses to stage anything unless every path reachable from the `exports` map
 exists on disk. The stylesheets are the ones that realistically go missing — they are copied by
 a trailing `cp` in the build script rather than emitted by tsup, so a partial build leaves the
@@ -274,7 +306,7 @@ JS in place and the CSS absent.
 
 Consumers pin the branch head through their own lockfile; on the `agent-builder` side that is
 `pnpm bump:ai-chat-sdk`. Once this package is published to npm, prefer a real
-`"@anter/ai-chat-sdk": "^x.y.z"` dependency instead — the git branch is an early-access
+`"@anter/ai-chat-sdk": "^x.y.z"` dependency instead — the git branches are an early-access
 convenience, not a long-term distribution channel.
 
 ---
